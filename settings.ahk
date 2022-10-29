@@ -1,9 +1,12 @@
 ; v1.0
 ; General settings
-global rows := 3 ; Number of row on the wall scene
-global cols := 3 ; Number of columns on the wall scene
-global mode := "W" ; W = Normal wall, B = Wall bypass (skip to next locked), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
+global rows := 2 ; Number of row on the wall scene
+global cols := 2 ; Number of columns on the wall scene
+global mode := "B" ; W = Normal wall, B = Wall bypass (skip to next locked), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
 global windowMode := "W" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
+global grid_estate = 0.3
+global grid_mode := True
+
 
 ; Extra features
 global widthMultiplier := 2.5 ; How wide your instances go to maximize visibility :) (set to 0 for no width change)
@@ -25,7 +28,7 @@ global tinderCheckBuffer := 5 ; When all instances cant reset, how often it chec
 
 ; Affinity
 ; -1 == use macro math to determine thread counts
-global affinityType := "B" ; N = no affinity management, B = basic affinity management, A = advanced affinity mangement (best if used with locking+resetAll)
+global affinityType := "A" ; N = no affinity management, B = basic affinity management, A = advanced affinity mangement (best if used with locking+resetAll)
 global playThreadsOverride := -1 ; Thread count for instance you are playing
 global lockThreadsOverride := -1 ; Thread count for locked instances loading on wall
 global highThreadsOverride := -1 ; Thread count for instances on the 0% dirt screen while on wall
@@ -36,7 +39,7 @@ global previewBurstLength := 500 ; The delay before switching from high to mid w
 global previewLoadPercent := 15 ; The percentage of world gen that must be reached before lowering to low
 
 ; OBS
-global obsControl := "N" ; N = Numpad keys (<10 inst), F = Function keys (f13-f24, <13 inst, setup script in utils folder), ARR = advanced array (see customKeyArray), ASS = advanced scene switcher (read GitHub)
+global obsControl := "controller" ; N = Numpad keys (<10 inst), F = Function keys (f13-f24, <13 inst, setup script in utils folder), ARR = advanced array (see customKeyArray), ASS = advanced scene switcher (read GitHub)
 global obsWallSceneKey := "F12" ; All obs scene control types use wallSceneKey
 global obsCustomKeyArray := [] ; Must be used with advanced array control type. Add keys in quotes separated by commas. The index in the array corresponds to the scene
 global obsResetMediaKey := "" ; Key pressed on any instance reset with sound (used for playing reset media file in obs for recordable/streamable resets and requires addition setup to work)

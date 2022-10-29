@@ -33,18 +33,11 @@ CountAttempts() {
 
 FindBypassInstance() {
   activeNum := GetActiveInstanceNum()
-  for i, isLocked in locked {
-    idle := McDirectories[i] . "idle.tmp"
-    if (FileExist(idle) && isLocked && i != activeNum)
-      return i
+  for i, inst in inMemoryInstances {
+    if (FileExist(inst.GetIdleFile()) && inst.IsLocked() && inst.GetInstanceNum() != activeNum)
+      return inst.GetInstanceNum()
   }
-  if (mode == "M") {
-    for i, mcdir in McDirectories {
-      idle := mcdir . "idle.tmp"
-      if (FileExist(idle) && i != activeNum)
-        return i
-    }
-  }
+  
   return -1
 }
 
@@ -79,10 +72,7 @@ GetFirstBgInstance(toSkip := -1, skip := false) {
   return -1
 }
 
-MousePosToInstNumber() {
-  MouseGetPos, mX, mY
-  return (Floor(mY / instHeight) * cols) + Floor(mX / instWidth) + 1
-}
+
 
 RunHide(Command)
 {
@@ -234,12 +224,17 @@ GetAllPIDs()
       ExitApp
     if !hasMcDirCache {
       FileAppend,%num%~%mcdir%`n,data/mcdirs.txt
-      PIDs[num] := rawPIDs[A_Index]
+      pid := rawPIDs[A_Index]
+      PIDs[num] := rawPIDs[A_Index] ; TODELETE
     } else {
-      PIDs[num] := GetPIDFromMcDir(mcdir)
+      pid := GetPIDFromMcDir(mcdir)
+      PIDs[num] := GetPIDFromMcDir(mcdir) ; TODELETE
     }
     McDirectories[num] := mcdir
+
+    inMemoryInstances.Push(new Instance(pid,mcdir,num))
   }
+  OutputDebug, % "GetAllPIDs end"
 }
 
 SetAffinities(idx:=0) {
@@ -314,7 +309,7 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
       ControlSend,, {Blind}{F1}, ahk_pid %pid%
     if (coop)
       ControlSend,, {Blind}{Esc}{Tab 7}{Enter}{Tab 4}{Enter}{Tab}{Enter}, ahk_pid %pid%
-    if (obsControl != "ASS") {
+    if (obsControl != "ASS" && obsControl != "controller") {
       if (obsControl == "N")
         obsKey := "Numpad" . idx
       else if (obsControl == "F")
@@ -324,6 +319,8 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
       Send {%obsKey% down}
       Sleep, %obsDelay%
       Send {%obsKey% up}
+    } else if (obsControl == "controller") {
+      SendOBSCmd("Play," . idx)
     }
   } else if smartSwitch {
     nextInst := FindBypassInstance()
@@ -335,6 +332,13 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
   }
 }
 
+
+SendOBSCmd(cmd) {
+    static cmdNum := 1
+    static cmdDir := % "data/pycmds/" . A_TickCount
+    FileAppend, %cmd%, %cmdDir%%cmdNum%.txt
+    cmdNum++
+}
 GetActiveInstanceNum() {
   WinGet, pid, PID, A
   for i, tmppid in PIDs {
@@ -343,42 +347,210 @@ GetActiveInstanceNum() {
   }
   return -1
 }
-
+GetActiveInstance(){
+  WinGet, pid, PID, A
+  for i, inst in inMemoryInstances {
+    if (inst.GetPID() == pid)
+      return inst
+  }
+  return
+}
 ExitWorld(nextInst:=-1)
 {
-  idx := GetActiveInstanceNum()
-  if (idx > 0) {
-    pid := PIDs[idx]
+  instance := GetActiveInstance()
+
+
+  if (instance) {
+    pid := instance.GetPID()
     if f1States[idx] ; goofy ghost pie removal
       ControlSend,, {Blind}{Esc}{F1}{F3}{Esc}{F1}{F3}, ahk_pid %pid%
     else
       ControlSend,, {Blind}{Esc}{F3}{Esc}{F3}, ahk_pid %pid%
-    if (CheckOptionsForValue(McDirectories[idx] . "options.txt", "fullscreen:", "false") == "true") {
-      fsKey := fsKeys[idx]
+    if (CheckOptionsForValue(instance.GetMcDir() . "options.txt", "fullscreen:", "false") == "true") {
+      fsKey := instance.fsKey
       ControlSend,, {Blind}{%fsKey%}, ahk_pid %pid%
       sleep, %fullScreenDelay%
     }
-    holdFile := McDirectories[idx] . "hold.tmp"
-    killFile := McDirectories[idx] . "kill.tmp"
-    FileDelete,%holdFile%
-    FileDelete, %killFile%
+    FileDelete,% instance.GetHoldFile()
+    FileDelete,% instance.GetKillFile()
     WinRestore, ahk_pid %pid%
+
     if (mode == "C" && nextInst == -1)
-      nextInst := Mod(idx, instances) + 1
+      nextInst := Mod(instance.GetInstanceNum(), instances) + 1
     else if ((mode == "B" || mode == "M") && nextInst == -1)
       nextInst := FindBypassInstance()
-    if (nextInst > 0)
+    if (nextInst > 0){
+      MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
+      instance.Reset(true)
       SwitchInstance(nextInst, false, idx)
-    else
+    }else{
+      MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
+      instance.Reset(true)
       ToWall(idx)
+    }
     SetAffinities(nextInst)
-    ResetInstance(idx)
+  
+    NotifyObs()
     if (widthMultiplier)
       WinMove, ahk_pid %pid%,,0,0,%A_ScreenWidth%,%newHeight%
     isWide := False
   }
 }
 
+MousePosToInstNumber() {
+  MouseGetPos, mX, mY
+  if (!grid_mode) {
+    return (Floor(mY / instHeight) * cols) + Floor(mX / instWidth) + 1
+  }
+
+  
+  if (mx <= A_ScreenWidth * grid_estate && my <= A_ScreenHeight * grid_estate){ ; Inside Focus Grid
+    return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/cols) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/rows )) + 1].GetInstanceNum()
+  }
+  if (my>= A_ScreenHeight * grid_estate) {
+      index:= rows*cols  + Floor(mx / ((A_ScreenWidth * grid_estate) / GetLockedInstanceCount()) ) +1 ; probably wrong
+      return inMemoryInstances[index].GetInstanceNum()
+  }
+
+  if (mx>= A_ScreenWidth * grid_estate) { ; Inside passive instances
+    index:= rows*cols + GetLockedInstanceCount() + Floor(my / (A_ScreenHeight / GetPassiveInstanceCount())) + 1
+    return inMemoryInstances[index].GetInstanceNum()
+  }
+  
+
+  return
+  
+}
+
+NotifyObs(){
+    OutputDebug, % "Building obs wall file"
+    output := ""
+    for i,inst  in inMemoryInstances {
+        nr := inst.GetInstanceNum()
+        if (output!="" ) {
+            output:= output . ","
+        }
+        output := output . nr
+        
+        if ( inst.IsLocked() ){
+          output := output . "L"
+        }
+
+        if (!inst.IsLocked() && A_Index>rows*cols){
+          output := output . "H"
+        }
+    }
+    OutputDebug, % output
+
+    FileDelete, data/obs.txt
+    FileAppend, %output%, data/obs.txt
+    return output
+}
+
+SwapWithOldest(instanceIndex){
+  Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
+}
+SwapWithFirstPassive(instanceIndex){
+  newIndex:=rows*cols+GetLockedInstanceCount()+1
+ 
+  Swap(inMemoryInstances,instanceIndex,rows*cols+GetLockedInstanceCount()+1)
+}
+MoveLast(hoveredIndex){
+  inst := inMemoryInstances[hoveredIndex]
+  inMemoryInstances.RemoveAt(hoveredIndex)
+  inMemoryInstances.Push(inst)
+}
+
+GetOldestInstanceIndexOutsideOfGrid(){
+    oldInstanceCount := GetPassiveInstanceCount()
+
+
+    oldestInstanceIndex :=-1
+    oldestPreviewTime:=A_TickCount
+    ; Find oldest instance based on preview time, if any
+    loop, %oldInstanceCount%{
+        index := rows*cols+GetLockedInstanceCount()+A_Index
+        instance:= inMemoryInstances[index]
+        
+        if (!instance.IsLocked() && instance.GetPreviewTime() != 0 && instance.GetPreviewTime() <= oldestPreviewTime){
+            oldestPreviewTime:=instance.GetPreviewTime()
+            oldestInstanceIndex:=index
+        }
+    }
+    if (oldestInstanceIndex>-1) {
+      OutputDebug, % "oldestInstanceIndex " . oldestInstanceIndex . " previewtime " . oldestPreviewTime
+      return oldestInstanceIndex
+    }
+    ; Find oldest instance based on when they were reset.
+    oldestTickCount := A_TickCount
+    loop, %oldInstanceCount%{
+        index := rows*cols+GetLockedInstanceCount() + A_Index
+        instance:= inMemoryInstances[index]
+        if (!instance.IsLocked() && instance.lastReset <= oldestTickCount){
+            oldestTickCount:=instance.lastReset
+            oldestInstanceIndex:=index
+        }
+    }
+
+    return oldestInstanceIndex
+}
+
+Swap(list,t,u)
+{
+    OutputDebug,  % "Swapping " . t . " With " . u
+    tmp1 := list[t], tmp2 := list[u]
+    list[t] := tmp2, list[u] := tmp1
+    return list
+}
+GetPassiveInstanceCount(){
+  passiveInstanceCount:=0
+  for i,inst  in inMemoryInstances {
+    if (A_Index > rows*cols){
+      if (!inst.isLocked()){
+        passiveInstanceCount++
+      }
+    }
+  }
+  return passiveInstanceCount
+}
+GetLockedInstanceCount(){
+  lockedInstanceCount:=0
+  for i,inst  in inMemoryInstances {
+    if (A_Index > rows*cols){
+      if (inst.isLocked()){
+        lockedInstanceCount++
+      }
+    }
+  }
+  return lockedInstanceCount
+}
+GetHoveredInstance(){
+  instNum := MousePosToInstNumber()
+  return GetInstanceByNum(instNum)
+}
+GetHoveredInstanceIndex(){
+  instNum := MousePosToInstNumber()
+  return GetInstanceIndexByNum(instNum)
+}
+
+GetInstanceIndexByNum(num){
+  for i,inst in inMemoryInstances{
+    if (inst.GetInstanceNum() == num){
+      return A_Index
+    }
+  }
+}
+GetInstanceByNum(num){
+  for i,inst in inMemoryInstances{
+    if (inst.GetInstanceNum() == num){
+      return A_Index
+    }
+  }
+}
+
+
+
+; Moved to instance.ahk
 ResetInstance(idx, bypassLock:=true, extraProt:=0) {
   holdFile := McDirectories[idx] . "hold.tmp"
   previewFile := McDirectories[idx] . "preview.tmp"
@@ -416,10 +588,13 @@ ToWall(comingFrom) {
   WinActivate, Fullscreen Projector
   WinMaximize, Full-screen Projector
   WinActivate, Full-screen Projector
-  if (obsControl != "ASS") {
+  if ( obsControl != "ASS" && obsControl != "controller") {
     send {%obsWallSceneKey% down}
     sleep, %obsDelay%
     send {%obsWallSceneKey% up}
+  }
+  if ( obsControl == "controller" ){
+    SendOBSCmd("ToWall")
   }
 }
 
@@ -441,11 +616,13 @@ FocusReset(focusInstance, bypassLock:=false) {
 ResetAll(bypassLock:=false) {
   if bypassLock
     UnlockAll(false)
-  loop, %instances% {
-    if locked[A_Index]
-      Continue
-    ResetInstance(A_Index)
+  loop, % rows * cols {
+    inst := inMemoryInstances[A_Index]
+    inst.Reset(bypassLock)
+    SwapWithOldest(A_Index)
+
   }
+  NotifyObs()
 }
 
 GetRandomLockNumber() {

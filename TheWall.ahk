@@ -5,6 +5,7 @@
 #NoEnv
 #SingleInstance Force
 #Include %A_ScriptDir%\scripts\functions.ahk
+#Include instance.ahk
 #Include settings.ahk
 
 SetKeyDelay, 0
@@ -14,6 +15,7 @@ SetTitleMatchMode, 2
 ; Don't configure these
 global McDirectories := []
 global instances := 0
+global inMemoryInstances := []
 global rawPIDs := []
 global PIDs := []
 global RM_PIDs := []
@@ -69,8 +71,9 @@ Loop, Files, %A_ScriptDir%\media\lock*.png
 SetTheme(theme)
 GetAllPIDs()
 
-for i, mcdir in McDirectories {
-  pid := PIDs[i]
+for i, inst in inMemoryInstances {
+  pid := inst.GetPID()
+  mcdir := inst.GetMcDir()
   logs := mcdir . "logs\latest.log"
   idle := mcdir . "idle.tmp"
   hold := mcdir . "hold.tmp"
@@ -78,14 +81,19 @@ for i, mcdir in McDirectories {
   lock := mcdir . "lock.tmp"
   kill := mcdir . "kill.tmp"
   VerifyInstance(mcdir, pid, i)
-  resetKey := resetKeys[i]
-  lpKey := lpKeys[i]
+  resetKey := resetKeys[i] ; TODELETE
+  inst.resetKey := resetKeys[i]
+  lpKey := lpKeys[i] ; TODELETE
+  inst.lpKey := lpKeys[i]
+  inst.fsKey := fsKeys[i]
+  
   SendLog(LOG_LEVEL_INFO, Format("Running a reset manager: {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16}", pid, logs, idle, hold, preview, lock, kill, resetKey, lpKey, i, playBitMask, lockBitMask, highBitMask, midBitMask, lowBitMask, bgLoadBitMask), A_TickCount)
   Run, "%A_ScriptDir%\scripts\reset.ahk" %pid% "%logs%" "%idle%" "%hold%" "%preview%" "%lock%" "%kill%" %resetKey% %lpKey% %i% %playBitMask% %lockBitMask% %highBitMask% %midBitMask% %lowBitMask% %bgLoadBitMask%, %A_ScriptDir%,, rmpid
   DetectHiddenWindows, On
   WinWait, ahk_pid %rmpid%
   DetectHiddenWindows, Off
-  RM_PIDs[i] := rmpid
+  RM_PIDs[i] := rmpid ; TODELETE
+  inst.SetRMPID(rmpid)
   UnlockInstance(i, False)
   if (!FileExist(idle))
     FileAppend, %A_TickCount%, %idle%
@@ -148,6 +156,7 @@ else
 
 Menu, Tray, Add, Close Instances, CloseInstances
 
+NotifyObs() 
 ToWall(0)
 
 SendLog(LOG_LEVEL_INFO, "Wall setup done", A_TickCount)

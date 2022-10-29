@@ -22,16 +22,51 @@ return
 
 #If WinActive("Fullscreen Projector") || WinActive("Full-screen Projector")
 {
-  *E Up::ResetInstance(MousePosToInstNumber())
-  *E::ResetInstance(MousePosToInstNumber(), false) ; drag reset to ignore locked instances
-  *R::SwitchInstance(MousePosToInstNumber())
-  *F::FocusReset(MousePosToInstNumber())
+  *E Up::
+    hoveredIndex:=GetHoveredInstanceIndex()
+    inst := inMemoryInstances[hoveredIndex]
+
+    if (!inst.IsLocked()){
+      SwapWithOldest(hoveredIndex)
+    } else {
+      MoveLast(hoveredIndex)
+    }
+    inst.Reset()
+    NotifyObs()
+    return
+;  *E::GetHoveredInstance().Reset(False) ; drag reset to ignore locked instances
+;  *R::SwitchInstance(MousePosToInstNumber())
+;  *F::FocusReset(MousePosToInstNumber())
   *T::ResetAll()
-  +LButton::LockInstance(MousePosToInstNumber()) ; lock an instance so the above "blanket reset" functions don't reset it
+  LButton::
+    hoveredIndex:=GetHoveredInstanceIndex()
+    inst := inMemoryInstances[hoveredIndex]
+    if (inst.IsLocked()){
+      return
+    }
+    SwapWithFirstPassive(hoveredIndex)
+    inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
+    NotifyObs()
+    return
+  RButton::
+    F:: SwitchInstance(GetHoveredInstance().GetInstanceNum())
+    hoveredIndex:=GetHoveredInstanceIndex()
+    inst := inMemoryInstances[hoveredIndex]
 
+    if (!inst.IsLocked()){
+      SwapWithOldest(hoveredIndex)
+    } else {
+      MoveLast(hoveredIndex)
+    }
+    inst.Reset()
+    NotifyObs()
+    return
   ; Optional (Remove semicolon ';' and set a hotkey)
-  ; ::PlayNextLock()
-
+  Tab::
+  +Tab::
+    ResetAll()
+    PlayNextLock()
+    return
   ; Reset keys (1-9)
 *1::
   ResetInstance(1)
