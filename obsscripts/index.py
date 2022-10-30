@@ -1,15 +1,20 @@
 from math import ceil, floor
+import traceback
 import obspython as S
 import os
 
 # Configure
-focus_cols = 2
-focus_rows = 2
 screen_width = 1920
 screen_height = 1080
-screen_estate=.3
+locked_rows_before_rollover = 3 
 
 # Don't configure
+
+focus_cols = 0
+focus_rows = 0
+screen_estate = 0
+wall_scene_name = ""
+instance_source_format = ""
 focused_count = focus_rows * focus_cols
 prev_instances = []
 prev_passive_count = 0
@@ -68,12 +73,15 @@ def test():
         global prev_locked_count
         global prev_passive_count
 
-        test_scene = S.obs_get_scene_by_name('Test Verification')
+        test_scene = S.obs_get_scene_by_name(wall_scene_name)
         if not test_scene:
+            print("Can't find scene")
             return
 
-        filePath = "D:\speedrunning\\boyenn-wall\MultiResetWall\data\obs.txt"
+        path = os.path.dirname(os.path.realpath(__file__))
+        filePath = os.path.abspath(os.path.realpath(os.path.join(path,'..','data','obs.txt')))
         if not os.path.exists(filePath):
+            print("Can't find obs.txt")
             return
         currentTime = os.path.getmtime(filePath)
         if currentTime == lastUpdate:
@@ -87,16 +95,16 @@ def test():
             print(raw_instances_string)
             passive_count = passive_instance_count(instances)
             locked_count = locked_instance_count(instances)
-            locked_rows = ceil(locked_count / focus_cols)
+            locked_cols = ceil(locked_count / locked_rows_before_rollover)
 
             backupRow = 0
-            lockedCol = 0
+            lockedIndex = 0
             for item in range(len(instances)):
                 if instances[item].hidden:
                     if passive_count == prev_passive_count and instances[item] == prev_instances[item]:
                         backupRow+=1
                         continue
-                    scene_item = S.obs_scene_find_source(test_scene, 'RSG'+instances[item].suffix)
+                    scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
                     inst_height = screen_height / passive_count
                     move_source(scene_item, screen_width*screen_estate,backupRow * inst_height )
                     scale_source(scene_item,screen_width*(1-screen_estate),inst_height)
@@ -104,34 +112,90 @@ def test():
                     continue
                 if instances[item].locked:
                     if locked_count == prev_locked_count and instances[item] == prev_instances[item]:
-                        lockedCol+=1
+                        lockedIndex+=1
                         continue
-                    scene_item = S.obs_scene_find_source(test_scene, 'RSG'+instances[item].suffix)
+                    scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
 
-                    inst_width = (screen_width * screen_estate) / min(locked_count,focus_cols)
-                    inst_height = (screen_height*(1-screen_estate)) / locked_rows
-                    move_source(scene_item, inst_width * (lockedCol%focus_rows),screen_height * screen_estate + (inst_height * floor(lockedCol / focus_rows) ) )
+                    # inst_width = (screen_width * screen_estate) / min(locked_count,focus_cols)
+                    # inst_height = (screen_height*(1-screen_estate)) / locked_rows
+                    inst_width = (screen_width*screen_estate) / locked_cols
+                    inst_height = (screen_height * (1-screen_estate)) / min(locked_count,locked_rows_before_rollover)
+                    # move_source(scene_item, inst_width * (lockedIndex%focus_rows),screen_height * screen_estate + (inst_height * floor(lockedIndex / focus_rows) ) )
+                    move_source(scene_item, (inst_width * floor(lockedIndex / locked_rows_before_rollover)) ,screen_height * screen_estate + inst_height * (lockedIndex%locked_rows_before_rollover))
                     scale_source(scene_item,inst_width, inst_height )
-                    lockedCol+=1
+                    lockedIndex+=1
                     continue
                 row = floor(item/focus_rows)
                 col = floor(item%focus_cols)
 
-                scene_item = S.obs_scene_find_source(test_scene, 'RSG'+instances[item].suffix)
+                scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
                 move_source(scene_item, col*(screen_width*screen_estate/focus_cols),row*(screen_height*screen_estate/focus_rows))
                 scale_source(scene_item,screen_width*screen_estate/focus_cols,screen_height*screen_estate/focus_rows)
             prev_instances = instances
             prev_passive_count = passive_count
             prev_locked_count = locked_count
     except Exception as e:
-        print(e)
+        traceback.print_exc(e)
         return
 
 def script_properties():  # ui
     props = S.obs_properties_create()
-    S.obs_properties_add_button(props, "button", "Test", test)
+    p = S.obs_properties_add_list(
+        props,
+        "scene",
+        "Scene",
+        S.OBS_COMBO_TYPE_EDITABLE,
+        S.OBS_COMBO_FORMAT_STRING,
+    )
+
+    scenes = S.obs_frontend_get_scenes()
+    for scene in scenes:
+        name = S.obs_source_get_name(scene)
+        S.obs_property_list_add_string(p, name, name)
+    S.source_list_release(scenes)
+    S.obs_properties_add_text(
+        props,
+        "instance_source_format",
+        "Instance Source Format.\nUse * for numbers.\nExample: RSG*",
+        S.OBS_TEXT_DEFAULT
+    )
+
+    S.obs_properties_add_int(
+        props,
+        "focus_rows",
+        "Grid rows",
+        1,
+        4,
+        1
+    )
+    S.obs_properties_add_int(
+        props,
+        "focus_cols",
+        "Grid cols",
+        1,
+        4,
+        1
+    )
+    S.obs_properties_add_float(
+        props,
+        "screen_estate",
+        "Screen estate\nThe percentage of the screen used for the focus grid\n Recommended between 0.3 and 0.7",
+        0,
+        1,
+        .1
+    )
     return props
 def script_update(settings):
+    global wall_scene_name
+    global instance_source_format
+    global focus_rows
+    global focus_cols
+    global screen_estate
+    wall_scene_name = S.obs_data_get_string(settings, "scene")
+    instance_source_format = S.obs_data_get_string(settings, "instance_source_format")
+    focus_rows = S.obs_data_get_int(settings, "focus_rows")
+    focus_cols = S.obs_data_get_int(settings, "focus_cols")
+    screen_estate = S.obs_data_get_double(settings, "screen_estate")
     S.timer_remove(test)
     S.timer_add(test,  100)
 

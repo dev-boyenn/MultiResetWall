@@ -13,6 +13,9 @@ import shutil
 import csv
 import os
 
+wall_scene_name = "Test Verification"
+instance_scene_format = "Game *"
+
 
 logging.basicConfig(
     filename=os.path.dirname(os.path.realpath(__file__)) + "\obs_log.log",
@@ -21,9 +24,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 version = "v1.3.0"
-
-def script_update(settings):
-    script_init()
 
 def get_cmd(path):
     cmdFiles = []
@@ -49,12 +49,12 @@ def get_cmd(path):
 def execute_cmd(cmd):
     try:
         if (cmd[0] == "ToWall"):
-            wall_scene = S.obs_scene_get_source(S.obs_get_scene_by_name("Test Verification"))
+            wall_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(wall_scene_name))
             S.obs_frontend_set_current_scene(wall_scene)
             S.obs_source_release(wall_scene)
         elif (cmd[0] == "Play"):
             inst_num = cmd[1]
-            instance_scene = S.obs_scene_get_source(S.obs_get_scene_by_name("Game *".replace("*", str(inst_num))))
+            instance_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(instance_scene_format.replace("*", str(inst_num))))
             S.obs_frontend_set_current_scene(instance_scene)
         elif (cmd[0] == "Reload"):
             script_init()
@@ -74,10 +74,42 @@ def execute_latest():
         logging.error(e)
 
 def script_description():
-    return f"Ravalle's OBS Script for <a href=https://github.com/joe-ldp/rawalle/releases/tag/{version}>Rawalle {version}</a></h3>"
+    return f"(slightly modified for specnr wall testing by Boyenn) Ravalle's OBS Script for <a href=https://github.com/joe-ldp/rawalle/releases/tag/{version}>Rawalle {version}</a></h3>"
 
-def script_init():
+def script_unload():
+    S.timer_remove(execute_latest)
+
+def script_properties():  # ui
+    props = S.obs_properties_create()
+    p = S.obs_properties_add_list(
+        props,
+        "scene",
+        "Scene",
+        S.OBS_COMBO_TYPE_EDITABLE,
+        S.OBS_COMBO_FORMAT_STRING,
+    )
+
+    scenes = S.obs_frontend_get_scenes()
+    for scene in scenes:
+        name = S.obs_source_get_name(scene)
+        S.obs_property_list_add_string(p, name, name)
+    S.source_list_release(scenes)
+    S.obs_properties_add_text(
+        props,
+        "instance_scene_format",
+        "Instance Scene ( NOT SOURCE ) Format.\nUse * for numbers.\nExample: Game *",
+        S.OBS_TEXT_DEFAULT
+    )
+
+    return props
+
+def script_update(settings):
     global cmdsPath
+    global wall_scene_name
+    global instance_scene_format
+    wall_scene_name = S.obs_data_get_string(settings, "scene")
+    instance_scene_format = S.obs_data_get_string(settings, "instance_scene_format")
+    
     try:
         execute_cmd(["ToWall"])
     except Exception as e:
@@ -96,6 +128,3 @@ def script_init():
 
     S.timer_remove(execute_latest)
     S.timer_add(execute_latest, 30)
-
-def script_unload():
-    S.timer_remove(execute_latest)

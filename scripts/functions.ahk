@@ -276,9 +276,10 @@ GetBitMask(threads) {
 }
 
 SwitchInstance(idx, skipBg:=false, from:=-1)
-{
+{ 
+  OutputDebug, % idx 
   idleFile := McDirectories[idx] . "idle.tmp"
-  if (idx <= instances && (FileExist(idleFile) || mode == "C")) {
+  if (idx>=0 && idx <= instances && (FileExist(idleFile) || mode == "C")) {
     holdFile := McDirectories[idx] . "hold.tmp"
     FileAppend,,%holdFile%
     killFile := McDirectories[idx] . "kill.tmp"
@@ -408,7 +409,17 @@ MousePosToInstNumber() {
     return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/cols) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/rows )) + 1].GetInstanceNum()
   }
   if (my>= A_ScreenHeight * grid_estate) {
-      index:= rows*cols  + Floor(mx / ((A_ScreenWidth * grid_estate) / GetLockedInstanceCount()) ) +1 ; probably wrong
+      static locked_rows_before_rollover := 3
+      locked_count:= GetLockedInstanceCount()
+      locked_cols := Ceil(locked_count / locked_rows_before_rollover)
+      locked_rows := Min(locked_count,locked_rows_before_rollover)
+      locked_inst_width := (A_ScreenWidth*grid_estate) / locked_cols
+      locked_inst_height := (A_ScreenHeight * (1-grid_estate)) / locked_rows
+      index := rows*cols + (Floor((mY - A_ScreenHeight*grid_estate)  / locked_inst_height) ) + Floor(mX / locked_inst_width) * locked_rows+ 1
+      if (!inMemoryInstances[index].IsLocked()){
+        return -1
+      }
+      ; index:= rows*cols  + Floor(mx / ((A_ScreenWidth * grid_estate) / GetLockedInstanceCount()) ) +1 ; probably wrong
       return inMemoryInstances[index].GetInstanceNum()
   }
 

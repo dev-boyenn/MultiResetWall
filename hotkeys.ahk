@@ -49,7 +49,6 @@ return
     NotifyObs()
     return
   RButton::
-    F:: SwitchInstance(GetHoveredInstance().GetInstanceNum())
     hoveredIndex:=GetHoveredInstanceIndex()
     inst := inMemoryInstances[hoveredIndex]
 

@@ -4,7 +4,7 @@ global rows := 2 ; Number of row on the wall scene
 global cols := 2 ; Number of columns on the wall scene
 global mode := "B" ; W = Normal wall, B = Wall bypass (skip to next locked), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
 global windowMode := "W" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
-global grid_estate = 0.3
+global grid_estate = 0.5
 global grid_mode := True
 
 
