@@ -125,8 +125,8 @@ def test():
                     scale_source(scene_item,inst_width, inst_height )
                     lockedIndex+=1
                     continue
-                row = floor(item/focus_rows)
-                col = floor(item%focus_cols)
+                row = floor(item/focus_cols)
+                col = floor(item%focus_cols) 
 
                 scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
                 move_source(scene_item, col*(screen_width*screen_estate/focus_cols),row*(screen_height*screen_estate/focus_rows))

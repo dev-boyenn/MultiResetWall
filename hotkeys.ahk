@@ -55,7 +55,11 @@ return
     if (!inst.IsLocked()){
       SwapWithOldest(hoveredIndex)
     } else {
-      MoveLast(hoveredIndex)
+      if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
+        Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
+      } else {
+        MoveLast(hoveredIndex)
+      }
     }
     inst.Reset()
     NotifyObs()

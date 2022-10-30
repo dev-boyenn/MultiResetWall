@@ -408,23 +408,22 @@ MousePosToInstNumber() {
   if (mx <= A_ScreenWidth * grid_estate && my <= A_ScreenHeight * grid_estate){ ; Inside Focus Grid
     return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/cols) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/rows )) + 1].GetInstanceNum()
   }
-  if (my>= A_ScreenHeight * grid_estate) {
+  if (my>= A_ScreenHeight * grid_estate && mx<=A_ScreenWidth * grid_estate) {
       static locked_rows_before_rollover := 3
       locked_count:= GetLockedInstanceCount()
       locked_cols := Ceil(locked_count / locked_rows_before_rollover)
       locked_rows := Min(locked_count,locked_rows_before_rollover)
       locked_inst_width := (A_ScreenWidth*grid_estate) / locked_cols
       locked_inst_height := (A_ScreenHeight * (1-grid_estate)) / locked_rows
-      index := rows*cols + (Floor((mY - A_ScreenHeight*grid_estate)  / locked_inst_height) ) + Floor(mX / locked_inst_width) * locked_rows+ 1
+      index := GetGridUsageInstancecount() + (Floor((mY - A_ScreenHeight*grid_estate)  / locked_inst_height) ) + Floor(mX / locked_inst_width) * locked_rows+ 1
       if (!inMemoryInstances[index].IsLocked()){
         return -1
       }
-      ; index:= rows*cols  + Floor(mx / ((A_ScreenWidth * grid_estate) / GetLockedInstanceCount()) ) +1 ; probably wrong
       return inMemoryInstances[index].GetInstanceNum()
   }
 
   if (mx>= A_ScreenWidth * grid_estate) { ; Inside passive instances
-    index:= rows*cols + GetLockedInstanceCount() + Floor(my / (A_ScreenHeight / GetPassiveInstanceCount())) + 1
+    index:= GetGridUsageInstancecount() + GetLockedInstanceCount() + Floor(my / (A_ScreenHeight / GetPassiveInstanceCount())) + 1
     return inMemoryInstances[index].GetInstanceNum()
   }
   
@@ -436,6 +435,7 @@ MousePosToInstNumber() {
 NotifyObs(){
     OutputDebug, % "Building obs wall file"
     output := ""
+    gridUsageInstanceCount := GetGridUsageInstancecount() ; To prevent looping every time
     for i,inst  in inMemoryInstances {
         nr := inst.GetInstanceNum()
         if (output!="" ) {
@@ -447,7 +447,7 @@ NotifyObs(){
           output := output . "L"
         }
 
-        if (!inst.IsLocked() && A_Index>rows*cols){
+        if (!inst.IsLocked() && A_Index>gridUsageInstanceCount){
           output := output . "H"
         }
     }
@@ -462,10 +462,9 @@ SwapWithOldest(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
 }
 SwapWithFirstPassive(instanceIndex){
-  newIndex:=rows*cols+GetLockedInstanceCount()+1
- 
-  Swap(inMemoryInstances,instanceIndex,rows*cols+GetLockedInstanceCount()+1)
-}
+  Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount()+GetLockedInstanceCount()+1)
+  }
+
 MoveLast(hoveredIndex){
   inst := inMemoryInstances[hoveredIndex]
   inMemoryInstances.RemoveAt(hoveredIndex)
@@ -480,7 +479,7 @@ GetOldestInstanceIndexOutsideOfGrid(){
     oldestPreviewTime:=A_TickCount
     ; Find oldest instance based on preview time, if any
     loop, %oldInstanceCount%{
-        index := rows*cols+GetLockedInstanceCount()+A_Index
+        index := GetGridUsageInstancecount()+GetLockedInstanceCount()+A_Index
         instance:= inMemoryInstances[index]
         
         if (!instance.IsLocked() && instance.GetPreviewTime() != 0 && instance.GetPreviewTime() <= oldestPreviewTime){
@@ -495,20 +494,26 @@ GetOldestInstanceIndexOutsideOfGrid(){
     ; Find oldest instance based on when they were reset.
     oldestTickCount := A_TickCount
     loop, %oldInstanceCount%{
-        index := rows*cols+GetLockedInstanceCount() + A_Index
+        index := GetGridUsageInstancecount()+GetLockedInstanceCount() + A_Index
         instance:= inMemoryInstances[index]
         if (!instance.IsLocked() && instance.lastReset <= oldestTickCount){
             oldestTickCount:=instance.lastReset
             oldestInstanceIndex:=index
         }
     }
-
+    if (oldestInstanceIndex<0){
+      ; There is no passive instances to swap with, take last of grid
+      return GetGridUsageInstancecount()
+    }
     return oldestInstanceIndex
 }
 
 Swap(list,t,u)
 {
-    OutputDebug,  % "Swapping " . t . " With " . u
+    if ( t < 1 || u < 1  || t > list.MaxIndex() ||  u > list.MaxIndex()) {
+      
+      return list
+    }
     tmp1 := list[t], tmp2 := list[u]
     list[t] := tmp2, list[u] := tmp1
     return list
@@ -516,7 +521,7 @@ Swap(list,t,u)
 GetPassiveInstanceCount(){
   passiveInstanceCount:=0
   for i,inst  in inMemoryInstances {
-    if (A_Index > rows*cols){
+    if (A_Index > GetGridUsageInstancecount()){
       if (!inst.isLocked()){
         passiveInstanceCount++
       }
@@ -524,13 +529,29 @@ GetPassiveInstanceCount(){
   }
   return passiveInstanceCount
 }
+; Differs from rows*cols in that sometimes the user locks so many instances that the grid isnt filled
+GetGridUsageInstancecount(){
+  gridInstanceCount := 0
+  for i,inst  in inMemoryInstances {
+    if (inst.IsLocked()){
+      return gridInstanceCount
+    }
+    gridInstanceCount++
+    if (gridInstanceCount == GetWantedGridInstanceCount()){
+      return gridInstanceCount
+    }
+  }
+}
+
+GetWantedGridInstanceCount(){
+  return rows*cols
+}
+
 GetLockedInstanceCount(){
   lockedInstanceCount:=0
   for i,inst  in inMemoryInstances {
-    if (A_Index > rows*cols){
-      if (inst.isLocked()){
-        lockedInstanceCount++
-      }
+    if (inst.isLocked()){
+      lockedInstanceCount++
     }
   }
   return lockedInstanceCount
