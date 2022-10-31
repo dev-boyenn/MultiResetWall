@@ -371,8 +371,6 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
       WinMaximize, ahk_pid %pid%
     WinMinimize, Fullscreen Projector
     WinMinimize, Full-screen Projector
-    if unpauseOnSwitch
-      ControlSend,, {Blind}{Esc}, ahk_pid %pid%
     WinSet, AlwaysOnTop, On, ahk_pid %pid%
     if (windowMode == "F") {
       fsKey := fsKeys[idx]
@@ -381,6 +379,8 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
     }
     WinSet, AlwaysOnTop, Off, ahk_pid %pid%
     Send {RButton} ; Make sure the window is activated
+    if unpauseOnSwitch
+      ControlSend,, {Blind}{Esc}, ahk_pid %pid%
     if (f1States[idx] == 2)
       ControlSend,, {Blind}{F1}, ahk_pid %pid%
     if (coop)
