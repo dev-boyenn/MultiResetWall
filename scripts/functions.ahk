@@ -1,5 +1,79 @@
 ; v1.0
 
+; TEMP hotkey section for pre WallManager OOP approach to help with hotkeys
+LockInstanceByGridIndex(gridIndex, resetRestOfGrid:=false){
+    inst := inMemoryInstances[gridIndex]
+    if (inst.IsLocked()){
+      return
+    }
+    SwapWithFirstPassive(gridIndex)
+    inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
+    NotifyObs()
+
+    if (resetRestOfGrid){
+      ResetGridInstances()
+    }
+    return
+}
+
+LockHoveredInstance(){
+    hoveredIndex:=GetHoveredInstanceIndex()
+    inst := inMemoryInstances[hoveredIndex]
+    if (inst.IsLocked()){
+      return
+    }
+    SwapWithFirstPassive(hoveredIndex)
+    inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
+    NotifyObs()
+    return
+}
+
+SwitchToHoveredInstance(){
+  hoveredIndex:=GetHoveredInstanceIndex()
+  inst := inMemoryInstances[hoveredIndex]
+  SwitchInstance(inst.GetInstanceNum()) 
+  if (inst.IsLocked()){
+    return
+  }
+  SwapWithFirstPassive(hoveredIndex)
+  inst.Lock() 
+  NotifyObs()
+}
+
+ResetHoveredInstance(){
+  hoveredIndex:=GetHoveredInstanceIndex()
+    inst := inMemoryInstances[hoveredIndex]
+
+    if (!inst.IsLocked()){
+      SwapWithOldest(hoveredIndex)
+    } else {
+      if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
+        Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
+      } else {
+        MoveLast(hoveredIndex)
+      }
+    }
+    inst.Reset()
+    NotifyObs()
+    return
+}
+
+FocusResetHoveredInstance() {
+  SwitchToHoveredInstance()
+  ResetGridInstances()
+}
+
+; Reset all instances
+ResetGridInstances() {
+  loop, % GetGridUsageInstancecount() {
+    inst := inMemoryInstances[A_Index]
+    inst.Reset(bypassLock)
+    SwapWithOldest(A_Index)
+  }
+  NotifyObs()
+}
+
+; END temp hotkey section
 SendLog(lvlText, msg, tickCount) {
   file := FileOpen("data/log.log", "a -rw")
   if (!IsObject(file)) {
@@ -42,16 +116,17 @@ FindBypassInstance() {
 }
 
 TinderMotion(swipeLeft) {
-  ; left = reset, right = keep
-  if !tinder
-    return
-  if swipeLeft
-    ResetInstance(currBg)
-  else
-    LockInstance(currBg)
-  newBg := GetFirstBgInstance(currBg)
-  SendLog(LOG_LEVEL_INFO, Format("Tinder motion occurred with old instance {1} and new instance {2}", currBg, newBg), A_TickCount)
-  currBg := newBg
+  ; To reimplement / replace with smarter background resetting
+  ; ; left = reset, right = keep
+  ; if !tinder
+  ;   return
+  ; if swipeLeft
+  ;   ResetInstance(currBg)
+  ; else
+  ;   LockInstance(currBg)
+  ; newBg := GetFirstBgInstance(currBg)
+  ; SendLog(LOG_LEVEL_INFO, Format("Tinder motion occurred with old instance {1} and new instance {2}", currBg, newBg), A_TickCount)
+  ; currBg := newBg
 }
 
 GetFirstBgInstance(toSkip := -1, skip := false) {
@@ -463,7 +538,7 @@ SwapWithOldest(instanceIndex){
 }
 SwapWithFirstPassive(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount()+GetLockedInstanceCount()+1)
-  }
+}
 
 MoveLast(hoveredIndex){
   inst := inMemoryInstances[hoveredIndex]
@@ -580,31 +655,6 @@ GetInstanceByNum(num){
   }
 }
 
-
-
-; Moved to instance.ahk
-ResetInstance(idx, bypassLock:=true, extraProt:=0) {
-  holdFile := McDirectories[idx] . "hold.tmp"
-  previewFile := McDirectories[idx] . "preview.tmp"
-  FileRead, previewTime, %previewFile%
-  spawnProt := spawnProtection + extraProt
-  if (idx > 0 && idx <= instances && !FileExist(holdFile) && (spawnProt + previewTime) < A_TickCount && ((!bypassLock && !locked[idx]) || bypassLock)) {
-    FileAppend,, %holdFile%
-    SendLog(LOG_LEVEL_INFO, Format("Instance {1} valid reset triggered", idx), A_TickCount)
-    pid := PIDs[idx]
-    rmpid := RM_PIDs[idx]
-    resetKey := resetKeys[idx]
-    lpKey := lpKeys[idx]
-    ControlSend, ahk_parent, {Blind}{%lpKey%}{%resetKey%}, ahk_pid %pid%
-    DetectHiddenWindows, On
-    PostMessage, MSG_RESET,,,, ahk_pid %rmpid%
-    DetectHiddenWindows, Off
-    if locked[idx]
-      UnlockInstance(idx, false)
-    resets++
-  }
-}
-
 SetTitles() {
   for i, pid in PIDs {
     WinSetTitle, ahk_pid %pid%, , Minecraft* - Instance %i%
@@ -630,32 +680,9 @@ ToWall(comingFrom) {
   }
 }
 
-FocusReset(focusInstance, bypassLock:=false) {
-  if bypassLock
-    UnlockAll(false)
-  SwitchInstance(focusInstance, true)
-  loop, %instances% {
-    if (A_Index = focusInstance || locked[A_Index])
-      Continue
-    ResetInstance(A_Index,, spawnProtection)
-  }
-  if !locked[focusInstance]
-    LockInstance(focusInstance, false)
-  needBgCheck := true
-}
 
-; Reset all instances
-ResetAll(bypassLock:=false) {
-  if bypassLock
-    UnlockAll(false)
-  loop, % rows * cols {
-    inst := inMemoryInstances[A_Index]
-    inst.Reset(bypassLock)
-    SwapWithOldest(A_Index)
 
-  }
-  NotifyObs()
-}
+
 
 GetRandomLockNumber() {
   if (themeLockCount == -1) {
@@ -745,14 +772,8 @@ UnlockAll(sound:=true) {
   }
 }
 
-PlayNextLock(focusReset:=false, bypassLock:=false) {
-  if (GetActiveInstanceNum() > 0)
-    ExitWorld(FindBypassInstance())
-  else
-    if focusReset
-      FocusReset(FindBypassInstance(), bypassLock)
-    else
-      SwitchInstance(FindBypassInstance())
+PlayNextLock() {
+  SwitchInstance(FindBypassInstance())
 }
 
 WorldBop() {

@@ -22,109 +22,20 @@ return
 
 #If WinActive("Fullscreen Projector") || WinActive("Full-screen Projector")
 {
-  *E Up::
-    hoveredIndex:=GetHoveredInstanceIndex()
-    inst := inMemoryInstances[hoveredIndex]
+  *E::ResetHoveredInstance() ; Resets the instance currently mouse hovered over, even when locked
+  *R::SwitchToHoveredInstance() ; Plays instance
+  *T::ResetGridInstances()
+  +LButton::LockHoveredInstance()
 
-    if (!inst.IsLocked()){
-      SwapWithOldest(hoveredIndex)
-    } else {
-      MoveLast(hoveredIndex)
-    }
-    inst.Reset()
-    NotifyObs()
-    return
-;  *E::GetHoveredInstance().Reset(False) ; drag reset to ignore locked instances
-;  *R::SwitchInstance(MousePosToInstNumber())
-;  *F::FocusReset(MousePosToInstNumber())
-  *T::ResetAll()
-  LButton::
-    hoveredIndex:=GetHoveredInstanceIndex()
-    inst := inMemoryInstances[hoveredIndex]
-    if (inst.IsLocked()){
-      return
-    }
-    SwapWithFirstPassive(hoveredIndex)
-    inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
-    NotifyObs()
-    return
-  RButton::
-    hoveredIndex:=GetHoveredInstanceIndex()
-    inst := inMemoryInstances[hoveredIndex]
-
-    if (!inst.IsLocked()){
-      SwapWithOldest(hoveredIndex)
-    } else {
-      if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
-        Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
-      } else {
-        MoveLast(hoveredIndex)
-      }
-    }
-    inst.Reset()
-    NotifyObs()
-    return
-  ; Optional (Remove semicolon ';' and set a hotkey)
-  Tab::
+  Tab:: ; Strongly recommended when using instance moving
   +Tab::
-    ResetAll()
+    ResetGridInstances()
     PlayNextLock()
     return
-  ; Reset keys (1-9)
-*1::
-  ResetInstance(1)
-return
-*2::
-  ResetInstance(2)
-return
-*3::
-  ResetInstance(3)
-return
-*4::
-  ResetInstance(4)
-return
-*5::
-  ResetInstance(5)
-return
-*6::
-  ResetInstance(6)
-return
-*7::
-  ResetInstance(7)
-return
-*8::
-  ResetInstance(8)
-return
-*9::
-  ResetInstance(9)
-return
-
-; Switch to instance keys (Shift + 1-9)
-*+1::
-  SwitchInstance(1)
-return
-*+2::
-  SwitchInstance(2)
-return
-*+3::
-  SwitchInstance(3)
-return
-*+4::
-  SwitchInstance(4)
-return
-*+5::
-  SwitchInstance(5)
-return
-*+6::
-  SwitchInstance(6)
-return
-*+7::
-  SwitchInstance(7)
-return
-*+8::
-  SwitchInstance(8)
-return
-*+9::
-  SwitchInstance(9)
-return
+  
+  *F::FocusResetHoveredInstance()
+  
+  ; For background resetting, set index to position in grid. add true if you want it to also reset all other grid instances
+  ; (Remove semicolon ';' and set a hotkey)
+  ; ::LockInstanceByGridIndex(0,true)
 }
