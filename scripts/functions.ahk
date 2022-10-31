@@ -23,6 +23,7 @@ LockHoveredInstance(){
       return
     }
     SwapWithFirstPassive(hoveredIndex)
+    SetAffinity(inst.GetPID(), lockBitMask)
     inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
     NotifyObs()
     return
