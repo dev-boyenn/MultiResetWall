@@ -21,6 +21,8 @@ return
   ; For background resetting, set index to position in grid. add true if you want it to also reset all other grid instances
   ; (Remove semicolon ';' and set a hotkey)
   ; ::LockInstanceByGridIndex(0,true)
+  ; For background resetting
+  ; ::ResetGridInstances()
 }
 return
 

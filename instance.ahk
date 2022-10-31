@@ -54,6 +54,7 @@ class Instance {
         this.locked:=false
     }
     Lock(){
+        SetAffinity(this.GetPID(), lockBitMask)
         this.locked:=True
     }
     GetIdleFile(){

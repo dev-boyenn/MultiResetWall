@@ -23,8 +23,7 @@ LockHoveredInstance(){
       return
     }
     SwapWithFirstPassive(hoveredIndex)
-    SetAffinity(inst.GetPID(), lockBitMask)
-    inst.Lock() ; lock an instance so the above "blanket reset" functions don't reset it
+    inst.Lock()
     NotifyObs()
     return
 }
@@ -538,7 +537,11 @@ SwapWithOldest(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
 }
 SwapWithFirstPassive(instanceIndex){
-  Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount()+GetLockedInstanceCount()+1)
+  if (GetPassiveInstanceCount()>0) {
+    Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount()+GetLockedInstanceCount()+1)
+  } else{
+    Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount())
+  }
 }
 
 MoveLast(hoveredIndex){
