@@ -1,4 +1,17 @@
 ; v1.0
+global usewincalls:=true
+
+; Don't use for user facing logs, just for during development, remove calls to it before pushing
+QuickLog( msg) {
+  file := FileOpen("data/devlog.log", "a -rw")
+  if (!IsObject(file)) {
+    logQueue := Func("QuickLog").Bind( msg)
+    SetTimer, %logQueue%, -10
+    return
+  }
+  file.Close()
+  FileAppend, [%A_YYYY%-%A_MM%-%A_DD% %A_Hour%:%A_Min%:%A_Sec%] %msg%`n, data/devlog.log
+}
 
 ; TEMP hotkey section for pre WallManager OOP approach to help with hotkeys
 LockInstanceByGridIndex(gridIndex, resetRestOfGrid:=false){
@@ -41,9 +54,11 @@ SwitchToHoveredInstance(){
 }
 
 ResetHoveredInstance(){
-  hoveredIndex:=GetHoveredInstanceIndex()
+    hoveredIndex:=GetHoveredInstanceIndex()
     inst := inMemoryInstances[hoveredIndex]
-
+    if ( inst.RecentlySwapped() ){
+      return
+    }
     if (!inst.IsLocked()){
       SwapWithOldest(hoveredIndex)
     } else {
@@ -67,6 +82,9 @@ FocusResetHoveredInstance() {
 ResetGridInstances() {
   loop, % GetGridUsageInstancecount() {
     inst := inMemoryInstances[A_Index]
+    if ( inst.RecentlySwapped() ){
+      Continue
+    }
     inst.Reset(bypassLock)
     SwapWithOldest(A_Index)
   }
@@ -309,7 +327,6 @@ GetAllPIDs()
 
     inMemoryInstances.Push(new Instance(pid,mcdir,num))
   }
-  OutputDebug, % "GetAllPIDs end"
 }
 
 SetAffinities(idx:=0) {
@@ -349,10 +366,13 @@ SetAffinity(pid, mask) {
 GetBitMask(threads) {
   return ((2 ** threads) - 1)
 }
-
+getHwndForPid(pid) {
+    pidStr := "ahk_pid " . pid
+    WinGet, hWnd, ID, %pidStr%
+    return hWnd
+}
 SwitchInstance(idx, skipBg:=false, from:=-1)
 { 
-  OutputDebug, % idx 
   idleFile := McDirectories[idx] . "idle.tmp"
   if (idx>=0 && idx <= instances && (FileExist(idleFile) || mode == "C")) {
     holdFile := McDirectories[idx] . "hold.tmp"
@@ -367,18 +387,44 @@ SwitchInstance(idx, skipBg:=false, from:=-1)
     SetAffinities(idx)
     if !locked[idx]
       LockInstance(idx, False, False)
-    if (widthMultiplier)
-      WinMaximize, ahk_pid %pid%
-    WinMinimize, Fullscreen Projector
-    WinMinimize, Full-screen Projector
-    WinSet, AlwaysOnTop, On, ahk_pid %pid%
-    if (windowMode == "F") {
-      fsKey := fsKeys[idx]
-      ControlSend,, {Blind}{%fsKey%}, ahk_pid %pid%
-      sleep, %fullScreenDelay%
+    if (!usewincalls){
+      if (widthMultiplier)
+        WinMaximize, ahk_pid %pid%
+      WinMinimize, Fullscreen Projector
+      WinMinimize, Full-screen Projector
+      WinSet, AlwaysOnTop, On, ahk_pid %pid%
+      if (windowMode == "F") {
+        fsKey := fsKeys[idx]
+        ControlSend,, {Blind}{%fsKey%}, ahk_pid %pid%
+        sleep, %fullScreenDelay%
+      }
+      WinSet, AlwaysOnTop, Off, ahk_pid %pid%
+      Send {RButton} ; Make sure the window is activated
+    }else {
+      WinMinimize, Fullscreen Projector
+      WinMinimize, Full-screen Projector
+      hwnd := getHwndForPid(pid)
+
+      if (windowMode == "F") {
+        fsKey := fsKeys[idx]
+        ControlSend,, {Blind}{%fsKey%}, ahk_pid %pid%
+      }
+ 
+      foreGroundWindow := DllCall("GetForegroundWindow")
+      windowThreadProcessId := DllCall("GetWindowThreadProcessId", "uint",foreGroundWindow,"uint",0) 
+      currentThreadId := DllCall("GetCurrentThreadId")
+      DllCall("AttachThreadInput", "uint",windowThreadProcessId,"uint",currentThreadId,"int",1)
+      DllCall("SetForegroundWindow", "uint",hwnd) ; Probably only important in windowed
+      DllCall("MoveWindow","uint",hwnd,"Int",0,"Int",0,"Int",A_ScreenWidth,"Int",A_ScreenHeight,"Int",1)
+      DllCall("BringWindowToTop", "uint",hwnd)
+      DllCall("AttachThreadInput", "uint",windowThreadProcessId,"uint",currentThreadId,"int",0)
     }
-    WinSet, AlwaysOnTop, Off, ahk_pid %pid%
-    Send {RButton} ; Make sure the window is activated
+   
+
+ 
+
+
+    
     if unpauseOnSwitch
       ControlSend,, {Blind}{Esc}, ahk_pid %pid%
     if (f1States[idx] == 2)
@@ -450,7 +496,6 @@ ExitWorld(nextInst:=-1)
     FileDelete,% instance.GetHoldFile()
     FileDelete,% instance.GetKillFile()
     WinRestore, ahk_pid %pid%
-
     if (mode == "C" && nextInst == -1)
       nextInst := Mod(instance.GetInstanceNum(), instances) + 1
     else if ((mode == "B" || mode == "M") && nextInst == -1)
@@ -467,8 +512,10 @@ ExitWorld(nextInst:=-1)
     SetAffinities(nextInst)
   
     NotifyObs()
-    if (widthMultiplier)
+    if (widthMultiplier){
       WinMove, ahk_pid %pid%,,0,0,%A_ScreenWidth%,%newHeight%
+    }
+    Winset, Bottom,, ahk_pid %pid%
     isWide := False
   }
 }
@@ -589,6 +636,8 @@ GetOldestInstanceIndexOutsideOfGrid(){
 
 Swap(list,t,u)
 {
+    list[t].UpdateGridTime()
+    list[u].UpdateGridTime()
     if ( t < 1 || u < 1  || t > list.MaxIndex() ||  u > list.MaxIndex()) {
       
       return list
@@ -637,6 +686,7 @@ GetLockedInstanceCount(){
 }
 GetHoveredInstance(){
   instNum := MousePosToInstNumber()
+  QuickLog(instNum)
   return GetInstanceByNum(instNum)
 }
 GetHoveredInstanceIndex(){
@@ -654,7 +704,7 @@ GetInstanceIndexByNum(num){
 GetInstanceByNum(num){
   for i,inst in inMemoryInstances{
     if (inst.GetInstanceNum() == num){
-      return A_Index
+      return inst
     }
   }
 }

@@ -5,6 +5,7 @@ class Instance {
         this.mcdir := mcdir
         this.idx := idx
         this.lastReset := A_TickCount
+        this.gridTime :=A_TickCount
     }
 
     GetMcDir(){
@@ -59,6 +60,16 @@ class Instance {
     }
     GetIdleFile(){
         return this.GetMcDir() . "idle.tmp"
+    }
+    GetGridTime(){
+        return this.gridTime
+    }
+    UpdateGridTime(){
+        this.gridTime := A_TickCount 
+    }
+    RecentlySwapped(){
+        
+        return (A_TickCount - this.gridTime)  < gridProtection   ; make configurable
     }
 
     Reset(bypassLock:=true, extraProt:=0){

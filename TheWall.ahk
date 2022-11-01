@@ -7,6 +7,7 @@
 #Include %A_ScriptDir%\scripts\functions.ahk
 #Include instance.ahk
 #Include settings.ahk
+#Include scripts\lib.ahk
 
 SetKeyDelay, 0
 SetWinDelay, 1
@@ -59,6 +60,7 @@ global hasMcDirCache := FileExist("data/mcdirs.txt")
 global themeLockCount := -1
 
 FileDelete, data/log.log
+QuickLog("==============")
 FileDelete, %dailyAttemptsFile%
 
 SendLog(LOG_LEVEL_INFO, "Wall launched", A_TickCount)
