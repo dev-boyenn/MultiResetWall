@@ -89,12 +89,9 @@ class Instance {
         if (this.IsThin()){
             DllCall("MoveWindow","uint",this.GetHwnd(),"Int",0,"Int",0,"Int",A_ScreenWidth,"Int",A_ScreenHeight,"Int",1)
             this.thin := false
-            ComObjCreate("SAPI.SpVoice").Speak("Fat")
         }else{
             DllCall("MoveWindow","uint",this.GetHwnd(),"Int",A_ScreenWidth/2-(300/2),"Int",0,"Int",300,"Int",A_ScreenHeight,"Int",1)
             this.thin := true
-            ComObjCreate("SAPI.SpVoice").Speak("Thin")
-
         }
     }
 
