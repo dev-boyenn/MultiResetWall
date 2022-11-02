@@ -1094,7 +1094,7 @@ WideHardo() {
   isWide := !isWide
 }
 
-ToggleMinMaximized(){
+ToggleThin(){
   GetActiveInstance().ToggleThin()
 }
 
