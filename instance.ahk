@@ -111,9 +111,9 @@ class Instance {
             SendLog(LOG_LEVEL_INFO, Format("Instance {1} valid reset triggered", this.GetInstanceNum()), A_TickCount)
             ControlSend, ahk_parent
             , % "{Blind}{" . this.lpkey . "}{" . this.resetKey . "}"
-            , % "ahk_pid" . this.pid
+            , % "ahk_pid " . this.pid
             DetectHiddenWindows, On
-            PostMessage, MSG_RESET,,,, % "ahk_pid" this.rmpid
+            PostMessage, MSG_RESET,,,, % "ahk_pid " this.rmpid
             DetectHiddenWindows, Off
 
             this.Unlock()
@@ -133,7 +133,7 @@ class Instance {
 
             if (windowMode == "F") {
                 fsKey := fsKeys[this.GetInstanceNum()]
-                ControlSend,, % "{Blind}{" . this.fsKey . "}", % "ahk_pid" . this.pid
+                ControlSend,, % "{Blind}{" . this.fsKey . "}", % "ahk_pid " . this.pid
             }
 
             foreGroundWindow := DllCall("GetForegroundWindow")
@@ -147,11 +147,11 @@ class Instance {
             DllCall("AttachThreadInput", "uint",windowThreadProcessId,"uint",currentThreadId,"int",0)
 
             if unpauseOnSwitch
-                ControlSend,, {Blind}{Esc}, % "ahk_pid" . this.pid
+                ControlSend,, {Blind}{Esc}, % "ahk_pid " . this.pid
             if (f1States[this.GetInstanceNum()] == 2)
-                ControlSend,, {Blind}{F1}, % "ahk_pid" . this.pid
+                ControlSend,, {Blind}{F1}, % "ahk_pid " . this.pid
             if (coop)
-                ControlSend,, {Blind}{Esc}{Tab 7}{Enter}{Tab 4}{Enter}{Tab}{Enter}, % "ahk_pid" . this.pid
+                ControlSend,, {Blind}{Esc}{Tab 7}{Enter}{Tab 4}{Enter}{Tab}{Enter}, % "ahk_pid " . this.pid
         
             SendOBSCmd("Play," . this.GetInstanceNum())
         } else {
