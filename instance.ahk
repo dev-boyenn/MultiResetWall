@@ -117,13 +117,13 @@ class Instance {
             FileAppend,,% this.GetHoldFile()
             FileAppend,,% this.GetKillFile()
             FileDelete,data/instance.txt
-            FileAppend,%idx%,data/instance.txt
-            SetAffinities(idx)
+            FileAppend,% this.GetInstanceNum(), data/instance.txt
+            SetAffinities(this.GetInstanceNum())
             this.Lock(false,false)
 
 
             if (windowMode == "F") {
-                fsKey := fsKeys[idx]
+                fsKey := fsKeys[this.GetInstanceNum()]
                 ControlSend,, % "{Blind}{" . this.fsKey . "}", % "ahk_pid" . this.pid
             }
 
