@@ -3,7 +3,7 @@
 global rows := 2 ; Number of rows on the focus grid, should be equal to what you have configured in obs for index.py
 global cols := 2 ; Number of columns on the focus grid, should be equal to what you have configured in obs for index.py
 ; I recommend wall bypass for instance moving setup
-global mode := "S" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassOnResettingInstancesLessThan instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
+global mode := "S" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassThreshold instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
 global windowMode := "F" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
 global grid_estate = 0.5 ; Recommended between 0.3 and 0.7, should be equal to what you have configured in obs for index.py
 global grid_mode := True ; If you set this to false shit will go south as the macro is currently not backward compatible

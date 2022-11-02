@@ -17,6 +17,7 @@ return
   ; ::CheckFourQuadrants("fortress")
   ; ::CheckFourQuadrants("bastion_remnant")
   ; ::CheckFor("buried_treasure")
+  ; ::ToggleMinMaximized()
 
   ; For background resetting, set index to position in grid. add true if you want it to also reset all other grid instances
   ; (Remove semicolon ';' and set a hotkey)

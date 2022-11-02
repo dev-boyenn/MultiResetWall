@@ -81,6 +81,22 @@ class Instance {
         FileAppend,, % this.GetLockFile()
 
     }
+    IsThin(){
+        return this.thin
+    }
+
+    ToggleThin(){
+        if (this.IsThin()){
+            DllCall("MoveWindow","uint",this.GetHwnd(),"Int",0,"Int",0,"Int",A_ScreenWidth,"Int",A_ScreenHeight,"Int",1)
+            this.thin := false
+            ComObjCreate("SAPI.SpVoice").Speak("Fat")
+        }else{
+            DllCall("MoveWindow","uint",this.GetHwnd(),"Int",A_ScreenWidth/2-(300/2),"Int",0,"Int",300,"Int",A_ScreenHeight,"Int",1)
+            this.thin := true
+            ComObjCreate("SAPI.SpVoice").Speak("Thin")
+
+        }
+    }
 
     GetLockFile(){
         return this.GetMcDir() . "lock.tmp"
@@ -117,6 +133,7 @@ class Instance {
             DetectHiddenWindows, Off
 
             this.Unlock()
+            this.thin := false
             resets++
         }
     }
@@ -129,8 +146,7 @@ class Instance {
             FileAppend,% this.GetInstanceNum(), data/instance.txt
             SetAffinities(this.GetInstanceNum())
             this.Lock(false,false)
-
-
+       
             if (windowMode == "F") {
                 fsKey := fsKeys[this.GetInstanceNum()]
                 ControlSend,, % "{Blind}{" . this.fsKey . "}", % "ahk_pid " . this.pid
@@ -140,7 +156,7 @@ class Instance {
             windowThreadProcessId := DllCall("GetWindowThreadProcessId", "uint",foreGroundWindow,"uint",0)
             currentThreadId := DllCall("GetCurrentThreadId")
             DllCall("AttachThreadInput", "uint",windowThreadProcessId,"uint",currentThreadId,"int",1)
-            if (widthMultiplier)
+            if (widthMultiplier && (windowMode == "W" || windowMode == "B"))
                 DllCall("SendMessage","uint",this.GetHwnd(),"uint",0x0112,"uint",0xF030,"int",0) ; fast maximise
             DllCall("SetForegroundWindow", "uint",this.GetHwnd()) ; Probably only important in windowed, helps application take input without a Send Click
             DllCall("BringWindowToTop", "uint",this.GetHwnd())

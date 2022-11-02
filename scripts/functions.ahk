@@ -1094,6 +1094,10 @@ WideHardo() {
   isWide := !isWide
 }
 
+ToggleMinMaximized(){
+  GetActiveInstance().ToggleThin()
+}
+
 OpenToLAN() {
   idx := GetActiveInstanceNum()
   commandkey := commandkeys[idx]
