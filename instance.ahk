@@ -56,7 +56,10 @@ class Instance {
         return this.locked
     }
     Unlock(){
+        if (!this.IsLocked())
+            return
         this.locked:=false
+        FileDelete, % this.GetLockFile()
     }
     Lock(sound:=true, affinityChange:= true){
         if (this.IsLocked()){
@@ -75,6 +78,12 @@ class Instance {
         }
         this.locked:=True
 
+        FileAppend,, % this.GetLockFile()
+
+    }
+
+    GetLockFile(){
+        return this.GetMcDir() . "lock.tmp"
     }
     GetIdleFile(){
         return this.GetMcDir() . "idle.tmp"

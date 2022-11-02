@@ -141,10 +141,14 @@ ManageThisAffinity() {
     else
       SetAffinity(pid, lowBitMask)
   } else { ; there is no active instance
-    if (state == "idle" || previewLoaded) ; if preview gen reached or idle
+
+
+    if (state == "idle") ; if preview gen reached or idle
       SetAffinity(pid, lowBitMask)
     else if FileExist(lockFile) ; if locked
       SetAffinity(pid, lockBitMask)
+    else if  previewLoaded 
+      SetAffinity(pid, lowBitMask)
     else if (state == "resetting") ; if resetting
       SetAffinity(pid, highBitMask)
     else if (!previewLoaded) ; if preview gen not reached

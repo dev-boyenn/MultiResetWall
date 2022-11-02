@@ -218,6 +218,7 @@ CheckOnePIDFromMcDir(proc, mcdir) {
   return -1
 }
 
+
 GetPIDFromMcDir(mcdir) {
   for proc in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_Process where ExecutablePath like ""%jdk%javaw.exe%""") {
     if ((pid := CheckOnePIDFromMcDir(proc, mcdir)) != -1) {
@@ -346,7 +347,7 @@ SetAffinities(idx:=0) {
     } else { ; there is no active instance
       if FileExist(idle)
         SetAffinity(pid, lowBitMask)
-      else if locked[i]
+      else if GetInstanceByNum(i).IsLocked()
         SetAffinity(pid, lockBitMask)
       else if FileExist(hold)
         SetAffinity(pid, highBitMask)
@@ -366,6 +367,9 @@ SetAffinity(pid, mask) {
 
 GetBitMask(threads) {
   return ((2 ** threads) - 1)
+}
+GetThreads(bitmask){
+  return Log(bitmask+1)/Log(2) + 1
 }
 getHwndForPid(pid) {
   pidStr := "ahk_pid " . pid
@@ -499,6 +503,25 @@ NotifyObs(){
   return output
 }
 
+
+SendAffinities(){
+  output := ""
+  for i,inst in inMemoryInstances {
+    output := output . inst.GetInstanceNum() . "[" . inst.GetPID() . "]" . (inst.IsLocked() ? "(locked)" : "") . (GetActiveInstanceNum() ==  inst.GetInstanceNum() ? "(active)" : "") . ": " GetThreads(AffinityGet(inst.GetPID()))
+    output := output . "`r`n"
+  }
+
+  FileDelete, data/affinities.txt
+  FileAppend, %output%, data/affinities.txt
+}
+
+AffinityGet(pid)
+{
+    hProc := DllCall("OpenProcess", "UInt", 1536, "Int", 0, "UInt", pid)
+    DllCall("GetProcessAffinityMask", "Ptr", hProc, "UPtrP", paf, "UPtrP", saf)
+    DllCall("CloseHandle", "Ptr", hProc)
+    return paf
+}
 SwapWithOldest(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
 }
