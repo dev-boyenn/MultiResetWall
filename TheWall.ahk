@@ -8,8 +8,7 @@
 #Include instance.ahk
 ; #Include settings-dev.ahk
 ; #Include hotkeys-dev.ahk
-#Include hotkeys.ahk
-#Include settings.ahk
+#Include settings-dev.ahk
 SetKeyDelay, 0
 SetWinDelay, 1
 SetTitleMatchMode, 2
@@ -202,3 +201,5 @@ CheckScripts:
   if resets
     CountAttempts()
 return
+#Include hotkeys.ahk
+; #Include hotkeys-dev.ahk
