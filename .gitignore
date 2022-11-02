@@ -1,6 +1,5 @@
 ATTEMPTS*
 TheWall*.zip
-*-Spec.*
 *MyOptions*
 test.ahk
 *pycache*
@@ -8,6 +7,4 @@ test.ahk
 *.ops
 *.txt
 /data/*.json
-/media/*
-*-Mach.*
-*-Boyenn.*
+*-dev*

@@ -24,8 +24,6 @@ Other optional hotkey functions include (to use, put the quoted text after a hot
 - "ResetAll(true)": Reset all instances regardless of locked status
 - "FocusReset(MousePosToInstNumber(), true)": Play the instance which your mouse is hovering over and reset all the rest regardless of locked status
 - "UnlockInstance(MousePosToInstNumber())": Unlock the instance which your mouse is hovering over
-- "LockAll()": Lock all instances (add False to the parentheses for it to be silent)
-- "UnlockAll()": Unlock all instances (add False to the parentheses for it to be silent)
 - "PlayNextLock()": Play to the first locked instance (add True in the parentheses to reset all other non-locked instances, add 2 True separated by a comma to reset all other instances regardless of locks) (for use on wall only)
 
 Use [this world deletion program](https://gist.github.com/Specnr/8a572ac5c5cfdb54eb0dc7d1eb2906a3) to delete worlds, or use the Delete Worlds option in the system tray (Requires Python).

@@ -1,5 +1,4 @@
 from math import ceil, floor
-import traceback
 import obspython as S
 import os
 
@@ -135,7 +134,7 @@ def test():
             prev_passive_count = passive_count
             prev_locked_count = locked_count
     except Exception as e:
-        traceback.print_exc(e)
+        print(e)
         return
 
 def script_properties():  # ui

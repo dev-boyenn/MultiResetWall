@@ -3,11 +3,11 @@
 global rows := 2 ; Number of rows on the focus grid, should be equal to what you have configured in obs for index.py
 global cols := 2 ; Number of columns on the focus grid, should be equal to what you have configured in obs for index.py
 ; I recommend wall bypass for instance moving setup
-global mode := "B" ; W = Normal wall, B = Wall bypass (skip to next locked), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
-global windowMode := "W" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
+global mode := "S" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassOnResettingInstancesLessThan instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
+global windowMode := "F" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
 global grid_estate = 0.5 ; Recommended between 0.3 and 0.7, should be equal to what you have configured in obs for index.py
 global grid_mode := True ; If you set this to false shit will go south as the macro is currently not backward compatible
-
+global bypassThreshold := 2 ; Makes it so that in smart bypass ( mode S ) and when using playNextLock, it will prefer keeping you on Wall scene if this many instances are idle ( fully loaded , not locked ) 
 
 ; Extra features
 global widthMultiplier := 2.5 ; How wide your instances go to maximize visibility :) (set to 0 for no width change)
@@ -17,12 +17,12 @@ global audioGui := False ; A simple GUI so the OBS application audio plugin can 
 global tinder := False ; Set to True if you want to use tinder-style bg resetting
 global unpauseOnSwitch := True ; Unpause instance right after switching to it
 global smartSwitch := False ; Find an instance to switch to if current one is unloaded
-global theme := "default" ; the name of the folder you wish to use as your macro theme in the global themes folder
+global theme := "rawalle" ; the name of the folder you wish to use as your macro theme in the global themes folder
 
 ; Delays (Defaults are probably fine)
-global spawnProtection := 700 ; Prevent a new instance from being reset for this many milliseconds after the preview is visible
-global gridProtection := 700 ; Prevent a new instance from being reset for this many milliseconds after the preview is visible
-global fullScreenDelay := 300 ; increse if fullscreening issues
+global spawnProtection := 500 ; Prevent a new instance from being reset for this many milliseconds after the preview is visible
+global gridProtection := 200 ; Prevent an instance for being reset / locked when it just swapped into / out of grid
+global fullScreenDelay := 100 ; ( DEV NOTE ) I think this is less of a problem with win32 activations, setting default to 100 to see if it causes issues for people
 global tinderCheckBuffer := 5 ; When all instances cant reset, how often it checks for an instance in seconds
 
 

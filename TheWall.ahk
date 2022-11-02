@@ -6,14 +6,16 @@
 #SingleInstance Force
 #Include %A_ScriptDir%\scripts\functions.ahk
 #Include instance.ahk
+; #Include settings-dev.ahk
+; #Include hotkeys-dev.ahk
+#Include hotkeys.ahk
 #Include settings.ahk
-#Include scripts\lib.ahk
-
 SetKeyDelay, 0
 SetWinDelay, 1
 SetTitleMatchMode, 2
 
 ; Don't configure these
+global projectorID := 0
 global McDirectories := []
 global instances := 0
 global inMemoryInstances := []
@@ -96,7 +98,6 @@ for i, inst in inMemoryInstances {
   DetectHiddenWindows, Off
   RM_PIDs[i] := rmpid ; TODELETE
   inst.SetRMPID(rmpid)
-  UnlockInstance(i, False)
   if (!FileExist(idle))
     FileAppend, %A_TickCount%, %idle%
   if FileExist(hold)
@@ -201,5 +202,3 @@ CheckScripts:
   if resets
     CountAttempts()
 return
-
-#Include hotkeys.ahk
