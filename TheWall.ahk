@@ -7,8 +7,7 @@
 #Include %A_ScriptDir%\scripts\functions.ahk
 #Include instance.ahk
 ; #Include settings-dev.ahk
-; #Include hotkeys-dev.ahk
-#Include settings-dev.ahk
+#Include settings.ahk
 SetKeyDelay, 0
 SetWinDelay, 1
 SetTitleMatchMode, 2
