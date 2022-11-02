@@ -125,8 +125,8 @@ CountAttempts() {
   resets := 0
 }
 
-FindBypassInstance(activeNum:=-1) {
-  if ( GetIdleNonLockedInstances()  > bypassThreshold ){
+FindBypassInstance(activeNum:=-1, shouldCheckIdle := true) {
+  if ( shouldCheckIdle && GetIdleNonLockedInstances()  > bypassThreshold ){
     return -1
   }
   for i, inst in inMemoryInstances {
@@ -425,7 +425,7 @@ ExitWorld()
     if (mode == "C")
       nextInst := Mod(instance.GetInstanceNum(), instances) + 1
     else if ((mode == "B" || mode == "M" || mode == "S")){
-      nextInst := FindBypassInstance(instance.GetInstanceNum())
+      nextInst := FindBypassInstance(instance.GetInstanceNum(), mode =="S")
     }
     if (nextInst > 0){
       MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
