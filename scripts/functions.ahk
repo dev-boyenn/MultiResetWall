@@ -13,8 +13,8 @@ QuickLog( msg) {
   FileAppend, [%A_YYYY%-%A_MM%-%A_DD% %A_Hour%:%A_Min%:%A_Sec%] %msg%`n, data/devlog.log
 }
 HwndIsFullscreen(hwnd) { ; ahk_id or ID is HWND
-    WinGetPos,,, w, h, ahk_id %hwnd%
-    return (w == A_ScreenWidth && h == A_ScreenHeight)
+  WinGetPos,,, w, h, ahk_id %hwnd%
+  return (w == A_ScreenWidth && h == A_ScreenHeight)
 }
 ; TEMP hotkey section for pre WallManager OOP approach to help with hotkeys
 LockInstanceByGridIndex(gridIndex, resetRestOfGrid:=false){
@@ -126,7 +126,7 @@ CountAttempts() {
 }
 
 FindBypassInstance(activeNum:=-1, shouldCheckIdle := true) {
-  if ( shouldCheckIdle && GetIdleNonLockedInstances()  > bypassThreshold ){
+  if ( shouldCheckIdle && GetIdleNonLockedInstances() > bypassThreshold ){
     return -1
   }
   for i, inst in inMemoryInstances {
@@ -217,7 +217,6 @@ CheckOnePIDFromMcDir(proc, mcdir) {
   }
   return -1
 }
-
 
 GetPIDFromMcDir(mcdir) {
   for proc in ComObjGet("winmgmts:").ExecQuery("Select * from Win32_Process where ExecutablePath like ""%jdk%javaw.exe%""") {
@@ -379,7 +378,7 @@ getHwndForPid(pid) {
 
 SwitchInstance(idx, skipBg:=false, from:=-1)
 {
-  
+
 }
 
 SendOBSCmd(cmd) {
@@ -454,7 +453,7 @@ MousePosToInstNumber() {
   }
 
   if (mx <= A_ScreenWidth * grid_estate && my <= A_ScreenHeight * grid_estate){ ; Inside Focus Grid
-    return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/cols) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/rows )) + 1].GetInstanceNum()
+    return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/rows) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/cols )) + 1].GetInstanceNum()
   }
   if (my>= A_ScreenHeight * grid_estate && mx<=A_ScreenWidth * grid_estate) {
     static locked_rows_before_rollover := 3
@@ -503,11 +502,10 @@ NotifyObs(){
   return output
 }
 
-
 SendAffinities(){
   output := ""
   for i,inst in inMemoryInstances {
-    output := output . inst.GetInstanceNum() . "[" . inst.GetPID() . "]" . (inst.IsLocked() ? "(locked)" : "") . (GetActiveInstanceNum() ==  inst.GetInstanceNum() ? "(active)" : "") . ": " GetThreads(AffinityGet(inst.GetPID()))
+    output := output . inst.GetInstanceNum() . "[" . inst.GetPID() . "]" . (inst.IsLocked() ? "(locked)" : "") . (GetActiveInstanceNum() == inst.GetInstanceNum() ? "(active)" : "") . ": " GetThreads(AffinityGet(inst.GetPID()))
     output := output . "`r`n"
   }
 
@@ -517,10 +515,10 @@ SendAffinities(){
 
 AffinityGet(pid)
 {
-    hProc := DllCall("OpenProcess", "UInt", 1536, "Int", 0, "UInt", pid)
-    DllCall("GetProcessAffinityMask", "Ptr", hProc, "UPtrP", paf, "UPtrP", saf)
-    DllCall("CloseHandle", "Ptr", hProc)
-    return paf
+  hProc := DllCall("OpenProcess", "UInt", 1536, "Int", 0, "UInt", pid)
+  DllCall("GetProcessAffinityMask", "Ptr", hProc, "UPtrP", paf, "UPtrP", saf)
+  DllCall("CloseHandle", "Ptr", hProc)
+  return paf
 }
 SwapWithOldest(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
@@ -666,17 +664,17 @@ SetTitles() {
 }
 
 GetProjectorID(ByRef projID) {
-    if (WinExist("ahk_id " . projID))
-        return
-    WinGet, IDs, List, ahk_exe obs64.exe
-    Loop %IDs%
-    {
-        projID := IDs%A_Index%
-        if (HwndIsFullscreen(projID))
-            return
-    }
-    projID := -1
-    MsgBox, Could not detect OBS Fullscreen Projector window. Will try again at next Wall action. If this persists, contact Boyenn / Ravalle
+  if (WinExist("ahk_id " . projID))
+    return
+  WinGet, IDs, List, ahk_exe obs64.exe
+  Loop %IDs%
+  {
+    projID := IDs%A_Index%
+    if (HwndIsFullscreen(projID))
+      return
+  }
+  projID := -1
+  MsgBox, Could not detect OBS Fullscreen Projector window. Will try again at next Wall action. If this persists, contact Boyenn / Ravalle
 }
 ToWall(comingFrom) {
   FileDelete,data/instance.txt
