@@ -674,7 +674,7 @@ GetProjectorID(ByRef projID) {
       return
   }
   projID := -1
-  SendLog(LOG_LEVEL_INFO, "Could not detect OBS Fullscreen Projector window. Will try again at next Wall action. If this persists, contact Boyenn / Ravalle", A_TickCount)
+  SendLog(LOG_LEVEL_WARNING, "Could not detect OBS Fullscreen Projector window. Will try again at next Wall action. If this persists, contact Boyenn / Ravalle", A_TickCount)
 }
 ToWall(comingFrom) {
   FileDelete,data/instance.txt
