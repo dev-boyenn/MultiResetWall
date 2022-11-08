@@ -3,11 +3,11 @@
 global rows := 2 ; Number of rows on the focus grid, should be equal to what you have configured in obs for index.py
 global cols := 2 ; Number of columns on the focus grid, should be equal to what you have configured in obs for index.py
 ; I recommend wall bypass for instance moving setup
-global mode := "S" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassThreshold instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
-global windowMode := "F" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
+global mode := "W" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassThreshold instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
+global windowMode := "W" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
 global grid_estate = 0.5 ; Recommended between 0.3 and 0.7, should be equal to what you have configured in obs for index.py
 global grid_mode := True ; If you set this to false shit will go south as the macro is currently not backward compatible
-global bypassThreshold := 2 ; Makes it so that in smart bypass ( mode S ) and when using playNextLock, it will prefer keeping you on Wall scene if this many instances are idle ( fully loaded , not locked ) 
+global bypassThreshold := 2 ; Makes it so that in smart bypass ( mode S ) and when using playNextLock, it will prefer keeping you on Wall scene if this many instances are idle ( fully loaded , not locked )
 
 ; Extra features
 global widthMultiplier := 2.5 ; How wide your instances go to maximize visibility :) (set to 0 for no width change)
@@ -24,7 +24,6 @@ global spawnProtection := 500 ; Prevent a new instance from being reset for this
 global gridProtection := 200 ; Prevent an instance for being reset / locked when it just swapped into / out of grid
 global fullScreenDelay := 100 ; ( DEV NOTE ) I think this is less of a problem with win32 activations, setting default to 100 to see if it causes issues for people
 global tinderCheckBuffer := 5 ; When all instances cant reset, how often it checks for an instance in seconds
-
 
 ; Super advanced settings (Read about these settings on the README before changing)
 
