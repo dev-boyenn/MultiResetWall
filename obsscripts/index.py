@@ -3,8 +3,10 @@ import obspython as S
 import os
 
 # Configure
-screen_width = 1920
-screen_height = 1080
+wall_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(wall_scene_name))
+screen_width = S.obs_source_get_width(wall_scene)
+screen_height = S.obs_source_get_height(wall_scene)
+S.obs_source_release(wall_scene)
 
 # Don't configure
 
@@ -23,7 +25,6 @@ lastUpdate = 0.0
 
 
 
-
 class FileInstance():
     def __init__(self, suffix,locked,hidden):
         self.suffix = suffix
@@ -38,10 +39,9 @@ class FileInstance():
         return self.suffix + ("L"if self.locked else "") + ("H" if self.hidden else "")
     pass
 
-
 def move_source(source, x, y): 
     if source:
-        pos = S.vec2();
+        pos = S.vec2()
         S.obs_sceneitem_get_pos(source, pos)  
         if(pos.x == x and pos.y == y):
             return
@@ -56,16 +56,16 @@ def scale_source(source, width, height):
         bounds.y=height;
         S.obs_sceneitem_set_bounds(source, bounds)  
 
-
 def parse_instances_string(input:str) -> 'list[FileInstance]': 
     raw_instances = input.split(",")
-    
     return list(map(lambda inst: FileInstance(suffix=inst.split("L")[0].split("H")[0],locked="L" in inst, hidden = "H" in inst),raw_instances))
 
 def passive_instance_count(instances:'list[FileInstance]'):
     return len(list(filter(lambda inst: inst.hidden ,instances)))
+
 def locked_instance_count(instances:'list[FileInstance]'):
     return len(list(filter(lambda inst: inst.locked ,instances)))
+
 def test():
     try:
         global lastUpdate
@@ -124,9 +124,9 @@ def test():
                     lockedIndex+=1
                     continue
                 row = floor(item/focus_cols)
-                col = floor(item%focus_cols) 
+                col = floor(item%focus_cols)
 
-                scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
+                scene_item = S.obs_scene_find_source_recursive(test_scene, instance_source_format.replace("*",instances[item].suffix))
                 move_source(scene_item, col*(screen_width*screen_estate_horizontal/focus_cols),row*(screen_height*screen_estate_vertical/focus_rows))
                 scale_source(scene_item,screen_width*screen_estate_horizontal/focus_cols,screen_height*screen_estate_vertical/focus_rows)
             prev_instances = instances
@@ -141,7 +141,7 @@ def script_properties():  # ui
     p = S.obs_properties_add_list(
         props,
         "scene",
-        "Wall Scene\n Select the wall scene you will fullscreen projector.",
+        "Wall Scene\n--------------------------------------------------",
         S.OBS_COMBO_TYPE_EDITABLE,
         S.OBS_COMBO_FORMAT_STRING,
     )
@@ -154,14 +154,14 @@ def script_properties():  # ui
     S.obs_properties_add_text(
         props,
         "instance_source_format",
-        "Instance Source Format\nThis refers to the names of the gamecapture sources you have inside of your wall scene. \n Use * for numbers.\nExample: RSG*",
+        "Instance Source Format\nThe names of the captures in your Wall scene.\nUse * for numbers (e.g. RSG*)\n--------------------------------------------------",
         S.OBS_TEXT_DEFAULT
     )
 
     S.obs_properties_add_int(
         props,
         "focus_rows",
-        "Grid rows\nAmount of rows in the focus grid. Set rows in settings.ahk to the same number",
+        "Grid rows (Horizontal)\n# of rows in the focus grid.\nSet rows in settings.ahk to the same number.\n--------------------------------------------------",
         1,
         4,
         1
@@ -169,7 +169,7 @@ def script_properties():  # ui
     S.obs_properties_add_int(
         props,
         "focus_cols",
-        "Grid cols\nAmount of columns in the focus grid. Set cols in settings.ahk to the same number",
+        "Grid cols (Vertical)\n# of columns in the focus grid.\nSet cols in settings.ahk to the same number.\n--------------------------------------------------",
         1,
         4,
         1
@@ -177,7 +177,7 @@ def script_properties():  # ui
     S.obs_properties_add_float(
         props,
         "screen_estate_horizontal",
-        "Screen estate\nThe percentage of the width screen used for the focus grid\n. Between 0 and 1",
+        "Horizontal screen estate\n% of screen width used for the focus grid. (0-1)\n--------------------------------------------------",
         0,
         1,
         .1
@@ -185,7 +185,7 @@ def script_properties():  # ui
     S.obs_properties_add_float(
         props,
         "screen_estate_vertical",
-        "Screen estate\nThe percentage of the height screen used for the focus grid\n. Between 0 and 1",
+        "Vertical screen estate\n% of screen height used for the focus grid. (0-1)\n--------------------------------------------------",
         0,
         1,
         .1
@@ -193,12 +193,13 @@ def script_properties():  # ui
     S.obs_properties_add_int(
         props,
         "locked_rows_before_rollover",
-        "Specifies how many rows have to be reached in the locked section to start a new column.\n For example, having this set to 2 makes the locked layout ( in order of locked instance count ): 1x1,2x1,2x2,2x2,2x3,2x3, ...",
+        "How many insts per row in the locked grid.\nFor example, 2 makes the locked layout:\n1x1,2x1,2x2,2x2,2x3,2x3,...\n--------------------------------------------------",
         1,
         4,
         1
     )
     return props
+
 def script_update(settings):
     global wall_scene_name
     global instance_source_format
