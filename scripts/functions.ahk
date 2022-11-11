@@ -720,41 +720,6 @@ GetOldestInstanceIndexOutsideOfGrid(){
   return oldestInstanceIndex
 }
 
-GetOldestInstanceIndexOutsideOfBgGrid(){
-  oldInstanceCount := GetPassiveInstanceCount() - ((3*3) - GetGridUsageInstancecount())
-
-  oldestInstanceIndex :=-1
-  oldestPreviewTime:=A_TickCount
-  ; Find oldest instance based on preview time, if any
-  loop, %oldInstanceCount%{
-    index := 3*3+GetLockedInstanceCount()+A_Index
-    instance:= inMemoryInstances[index]
-
-    if (!instance.IsLocked() && instance.GetPreviewTime() != 0 && instance.GetPreviewTime() <= oldestPreviewTime){
-      oldestPreviewTime:=instance.GetPreviewTime()
-      oldestInstanceIndex:=index
-    }
-  }
-  if (oldestInstanceIndex>-1) {
-    return oldestInstanceIndex
-  }
-  ; Find oldest instance based on when they were reset.
-  oldestTickCount := A_TickCount
-  loop, %oldInstanceCount%{
-    index := 3*3+GetLockedInstanceCount()+A_Index
-    instance:= inMemoryInstances[index]
-    if (!instance.IsLocked() && instance.lastReset <= oldestTickCount){
-      oldestTickCount:=instance.lastReset
-      oldestInstanceIndex:=index
-    }
-  }
-  if (oldestInstanceIndex<0){
-    ; There is no passive instances to swap with, take last of grid
-    return GetGridUsageInstancecount()
-  }
-  return oldestInstanceIndex
-}
-
 Swap(list,t,u)
 {
   list[t].UpdateGridTime()
