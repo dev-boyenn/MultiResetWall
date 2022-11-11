@@ -190,13 +190,13 @@ def script_properties():  # ui
         1,
         .1
     )
-    S.obs_properties_add_float(
+    S.obs_properties_add_int(
         props,
         "locked_rows_before_rollover",
         "Specifies how many rows have to be reached in the locked section to start a new column.\n For example, having this set to 2 makes the locked layout ( in order of locked instance count ): 1x1,2x1,2x2,2x2,2x3,2x3, ...",
-        0,
         1,
-        .1
+        4,
+        1
     )
     return props
 def script_update(settings):
@@ -213,7 +213,7 @@ def script_update(settings):
     focus_cols = S.obs_data_get_int(settings, "focus_cols")
     screen_estate_horizontal = S.obs_data_get_double(settings, "screen_estate_horizontal")
     screen_estate_vertical = S.obs_data_get_double(settings, "screen_estate_vertical")
-    locked_rows_before_rollover = S.obs_data_get_double(settings, "locked_rows_before_rollover")
+    locked_rows_before_rollover = S.obs_data_get_int(settings, "locked_rows_before_rollover")
     S.timer_remove(test)
     S.timer_add(test,  100)
 
