@@ -5,7 +5,10 @@ global cols := 2 ; Number of columns on the focus grid, should be equal to what 
 ; I recommend wall bypass for instance moving setup
 global mode := "W" ; W = Normal wall, B = Wall bypass (skip to next locked), S = Smart Bypass ( Bypass theres only bypassThreshold instances resetting ), M = Modern multi (send to wall when none loaded), C = Classic original multi (always force to next instance)
 global windowMode := "W" ; W = windowed mode, F = fullscreen mode, B = borderless windowed
-global grid_estate = 0.5 ; Recommended between 0.3 and 0.7, should be equal to what you have configured in obs for index.py
+global screen_estate_horizontal = 1 ; Horizontal ratio of the focus grid. Setting this to 1 hides the passive instances.
+global screen_estate_vertical = 0.6 ; Vertical ratio of the focus grid. Setting this to 1 hides the locked instances.
+global locked_rows_before_rollover = 3 ; Specifies how many rows have to be reached in the locked section to start a new column. For example, having this set to 2 makes the locked layout: 1x1,2x1,2x2,2x2,2x3,2x3, ...
+global scrollBgResetting = False ; Adds Scroll background resetting. Read README.md for how to set it up
 global grid_mode := True ; If you set this to false shit will go south as the macro is currently not backward compatible
 global bypassThreshold := 2 ; Makes it so that in smart bypass ( mode S ) and when using playNextLock, it will prefer keeping you on Wall scene if this many instances are idle ( fully loaded , not locked )
 

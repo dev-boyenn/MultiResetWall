@@ -5,13 +5,14 @@ import os
 # Configure
 screen_width = 1920
 screen_height = 1080
-locked_rows_before_rollover = 3 
 
 # Don't configure
 
 focus_cols = 0
 focus_rows = 0
-screen_estate = 0
+screen_estate_horizontal = 0
+screen_estate_vertical = 0
+locked_rows_before_rollover = 0
 wall_scene_name = ""
 instance_source_format = ""
 focused_count = focus_rows * focus_cols
@@ -71,6 +72,7 @@ def test():
         global prev_instances
         global prev_locked_count
         global prev_passive_count
+        global locked_rows_before_rollover
 
         test_scene = S.obs_get_scene_by_name(wall_scene_name)
         if not test_scene:
@@ -105,8 +107,8 @@ def test():
                         continue
                     scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
                     inst_height = screen_height / passive_count
-                    move_source(scene_item, screen_width*screen_estate,backupRow * inst_height )
-                    scale_source(scene_item,screen_width*(1-screen_estate),inst_height)
+                    move_source(scene_item, screen_width*screen_estate_horizontal,backupRow * inst_height )
+                    scale_source(scene_item,screen_width*(1-screen_estate_horizontal),inst_height)
                     backupRow+=1
                     continue
                 if instances[item].locked:
@@ -115,12 +117,9 @@ def test():
                         continue
                     scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
 
-                    # inst_width = (screen_width * screen_estate) / min(locked_count,focus_cols)
-                    # inst_height = (screen_height*(1-screen_estate)) / locked_rows
-                    inst_width = (screen_width*screen_estate) / locked_cols
-                    inst_height = (screen_height * (1-screen_estate)) / min(locked_count,locked_rows_before_rollover)
-                    # move_source(scene_item, inst_width * (lockedIndex%focus_rows),screen_height * screen_estate + (inst_height * floor(lockedIndex / focus_rows) ) )
-                    move_source(scene_item, (inst_width * floor(lockedIndex / locked_rows_before_rollover)) ,screen_height * screen_estate + inst_height * (lockedIndex%locked_rows_before_rollover))
+                    inst_width = (screen_width*screen_estate_horizontal) / locked_cols
+                    inst_height = (screen_height * (1-screen_estate_vertical)) / min(locked_count,locked_rows_before_rollover)
+                    move_source(scene_item, (inst_width * floor(lockedIndex / locked_rows_before_rollover)) ,screen_height * screen_estate_vertical + inst_height * (lockedIndex%locked_rows_before_rollover))
                     scale_source(scene_item,inst_width, inst_height )
                     lockedIndex+=1
                     continue
@@ -128,8 +127,8 @@ def test():
                 col = floor(item%focus_cols) 
 
                 scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
-                move_source(scene_item, col*(screen_width*screen_estate/focus_cols),row*(screen_height*screen_estate/focus_rows))
-                scale_source(scene_item,screen_width*screen_estate/focus_cols,screen_height*screen_estate/focus_rows)
+                move_source(scene_item, col*(screen_width*screen_estate_horizontal/focus_cols),row*(screen_height*screen_estate_vertical/focus_rows))
+                scale_source(scene_item,screen_width*screen_estate_horizontal/focus_cols,screen_height*screen_estate_vertical/focus_rows)
             prev_instances = instances
             prev_passive_count = passive_count
             prev_locked_count = locked_count
@@ -142,7 +141,7 @@ def script_properties():  # ui
     p = S.obs_properties_add_list(
         props,
         "scene",
-        "Scene",
+        "Wall Scene\n Select the wall scene you will fullscreen projector.",
         S.OBS_COMBO_TYPE_EDITABLE,
         S.OBS_COMBO_FORMAT_STRING,
     )
@@ -155,14 +154,14 @@ def script_properties():  # ui
     S.obs_properties_add_text(
         props,
         "instance_source_format",
-        "Instance Source Format.\nUse * for numbers.\nExample: RSG*",
+        "Instance Source Format\nThis refers to the names of the gamecapture sources you have inside of your wall scene. \n Use * for numbers.\nExample: RSG*",
         S.OBS_TEXT_DEFAULT
     )
 
     S.obs_properties_add_int(
         props,
         "focus_rows",
-        "Grid rows",
+        "Grid rows\nAmount of rows in the focus grid. Set rows in settings.ahk to the same number",
         1,
         4,
         1
@@ -170,15 +169,31 @@ def script_properties():  # ui
     S.obs_properties_add_int(
         props,
         "focus_cols",
-        "Grid cols",
+        "Grid cols\nAmount of columns in the focus grid. Set cols in settings.ahk to the same number",
         1,
         4,
         1
     )
     S.obs_properties_add_float(
         props,
-        "screen_estate",
-        "Screen estate\nThe percentage of the screen used for the focus grid\n Recommended between 0.3 and 0.7",
+        "screen_estate_horizontal",
+        "Screen estate\nThe percentage of the width screen used for the focus grid\n. Between 0 and 1",
+        0,
+        1,
+        .1
+    )
+    S.obs_properties_add_float(
+        props,
+        "screen_estate_vertical",
+        "Screen estate\nThe percentage of the height screen used for the focus grid\n. Between 0 and 1",
+        0,
+        1,
+        .1
+    )
+    S.obs_properties_add_float(
+        props,
+        "locked_rows_before_rollover",
+        "Specifies how many rows have to be reached in the locked section to start a new column.\n For example, having this set to 2 makes the locked layout ( in order of locked instance count ): 1x1,2x1,2x2,2x2,2x3,2x3, ...",
         0,
         1,
         .1
@@ -189,12 +204,16 @@ def script_update(settings):
     global instance_source_format
     global focus_rows
     global focus_cols
-    global screen_estate
+    global screen_estate_horizontal
+    global screen_estate_vertical
+    global locked_rows_before_rollover
     wall_scene_name = S.obs_data_get_string(settings, "scene")
     instance_source_format = S.obs_data_get_string(settings, "instance_source_format")
     focus_rows = S.obs_data_get_int(settings, "focus_rows")
     focus_cols = S.obs_data_get_int(settings, "focus_cols")
-    screen_estate = S.obs_data_get_double(settings, "screen_estate")
+    screen_estate_horizontal = S.obs_data_get_double(settings, "screen_estate_horizontal")
+    screen_estate_vertical = S.obs_data_get_double(settings, "screen_estate_vertical")
+    locked_rows_before_rollover = S.obs_data_get_double(settings, "locked_rows_before_rollover")
     S.timer_remove(test)
     S.timer_add(test,  100)
 

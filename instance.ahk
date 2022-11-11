@@ -65,6 +65,7 @@ class Instance {
         if (this.IsLocked()){
             return
         }
+        this.locked:=True
         if ((sounds == "A" || sounds == "F" || sound == "L") && sound) {
             SoundPlay, A_ScriptDir\..\media\lock.wav
             if obsLockMediaKey {
@@ -76,8 +77,6 @@ class Instance {
         if affinityChange {
             SetAffinity(this.pid, lockBitMask)
         }
-        this.locked:=True
-
         FileAppend,, % this.GetLockFile()
 
     }
@@ -112,11 +111,8 @@ class Instance {
         return (A_TickCount - this.gridTime) < gridProtection ; make configurable
     }
 
-    Reset(bypassLock:=true, extraProt:=0){
-        if(
-                !FileExist(this.GetHoldFile())
-            && (spawnProtection + extraProt + this.GetPreviewTime()) < A_TickCount
-        && ((!bypassLock && !this.locked) || bypassLock))
+    Reset(bypassLock:=true, extraProt:=0) {
+        if (!FileExist(this.GetHoldFile()) && (bypassLock || ((spawnProtection + extraProt + this.GetPreviewTime()) < A_TickCount && (!this.locked)) ))
         {
             this.lastReset:=A_TickCount
             FileDelete, % this.GetPreviewFile()
@@ -143,7 +139,8 @@ class Instance {
             FileAppend,% this.GetInstanceNum(), data/instance.txt
             SetAffinities(this.GetInstanceNum())
             this.Lock(false,false)
-       
+            GetProjectorID(projectorID)
+            WinMinimize, ahk_id %projectorID%
             if (windowMode == "F") {
                 fsKey := fsKeys[this.GetInstanceNum()]
                 ControlSend,, % "{Blind}{" . this.fsKey . "}", % "ahk_pid " . this.pid
@@ -167,6 +164,11 @@ class Instance {
                 ControlSend,, {Blind}{Esc}{Tab 7}{Enter}{Tab 4}{Enter}{Tab}{Enter}, % "ahk_pid " . this.pid
         
             SendOBSCmd("Play," . this.GetInstanceNum())
+
+            if (scrollBgResetting){
+                CreateBackgroundArray()
+            }
+            NotifyObsBackground()
         } else {
             this.Lock()
         }

@@ -7,6 +7,7 @@
 #Include %A_ScriptDir%\scripts\functions.ahk
 #Include instance.ahk
 ; #Include settings-dev.ahk
+Thread, NoTimers , True
 #Include settings.ahk
 SetKeyDelay, 0
 SetWinDelay, 1
@@ -30,6 +31,8 @@ global fsKeys := []
 global commandkeys := []
 global f1States := []
 global resets := 0
+global backGroundArray := []
+global bgPos := 1
 
 EnvGet, threadCount, NUMBER_OF_PROCESSORS
 global playThreads := playThreadsOverride > 0 ? playThreadsOverride : threadCount ; total threads unless override
@@ -159,6 +162,7 @@ Menu, Tray, Add, Close Instances, CloseInstances
 
 NotifyObs() 
 ToWall(0)
+CreateBackgroundArray()
 
 SendLog(LOG_LEVEL_INFO, "Wall setup done", A_TickCount)
 if (!disableTTS)
@@ -167,6 +171,7 @@ if (!disableTTS)
 #Persistent
 OnExit, ExitSub
 SetTimer, CheckScripts, 20
+SetTimer, ReplacePreviewsInGrid, 100
 return
 
 ExitSub:
