@@ -2,6 +2,106 @@
 global usewincalls:=true
 ; Don't use for user facing logs, just for during development, remove calls to it before pushing
 ; Get-Content .\data\devlog.log -Tail 10 -Wait for reading, doesnt close on macro reload
+
+FloorMod(vNum1, vNum2)
+{
+  return vNum1 - (Floor(vNum1 / vNum2) * vNum2)
+}
+BgLock(){
+  toLock := FloorMod(bgPos + 1,backgroundArray.MaxIndex()) +1
+  backgroundArray[toLock].Lock()
+  backgroundArray.RemoveAt(toLock ,1)
+  NotifyObsBackground()
+}
+BgScrollForward(){
+  toReset := bgPos
+  bgPos := FloorMod(bgPos,backgroundArray.MaxIndex()) +1
+  backgroundArray[toReset].Reset()
+  NotifyObsBackground()
+}
+
+BgScrollBackward(){
+  bgPos := FloorMod(bgPos-2,backgroundArray.MaxIndex()) +1
+  NotifyObsBackground()
+}
+NotifyObsBackground(){
+  if (!scrollBgResetting){
+    return
+  }
+  output := ""
+  loop 5 {
+    if (output!="" ) {
+      output:= output . ","
+    }
+    instIndex := FloorMod(bgPos + (A_Index-2),backgroundArray.MaxIndex()) +1
+    output := output . backgroundArray[instIndex].GetInstanceNum()
+  }
+
+  FileDelete, data/obsbg.txt
+  FileAppend, %output%, data/obsbg.txt
+  return output
+}
+hasValue(haystack, needle) {
+  if(!isObject(haystack))
+    return false
+  if(haystack.Length()==0)
+    return false
+  for k,v in haystack
+    if(v==needle)
+    return true
+  return false
+}
+ReorderInMemoryInstances(){
+  ; I wonder what BigO this shit is
+  ; idk man im too tired just reorder the array or some shit;
+  ; or maybe dont who knows you do you
+
+  newInstances := []
+
+  seen := []
+  wanted :=GetWantedGridInstanceCount()
+  loop %wanted% {
+    oldestInstanceIndex :=-1
+    oldestPreviewTime:=A_TickCount
+    for i, instance in inMemoryInstances {
+      if (!hasValue(seen,instance.GetInstanceNum()) && !instance.IsLocked() && instance.GetPreviewTime() != 0 && instance.GetPreviewTime() <= oldestPreviewTime){
+        oldestPreviewTime:=instance.GetPreviewTime()
+        oldestInstanceIndex:=i
+      }
+    }
+    if (oldestInstanceIndex<0) {
+      oldestTickCount := A_TickCount
+      for i, instance in inMemoryInstances {
+        if (!hasValue(seen,instance.GetInstanceNum()) && !instance.IsLocked() && instance.lastReset <= oldestTickCount){
+          oldestTickCount:=instance.lastReset
+          oldestInstanceIndex:=i
+        }
+      }
+    }
+
+    if (oldestInstanceIndex>0){
+      seen.Push(inMemoryInstances[oldestInstanceIndex].GetInstanceNum())
+      newInstances.Push(inMemoryInstances[oldestInstanceIndex])
+    }
+
+  }
+  for i, inst in inMemoryInstances{
+    if (!hasValue(seen,inst.GetInstanceNum()) && inst.IsLocked()){
+      newInstances.Push(inst)
+      seen.Push(inst.GetInstanceNum())
+    }
+  }
+  for i, inst in inMemoryInstances{
+
+    if (!hasValue(seen,inst.GetInstanceNum())){
+      newInstances.Push(inst)
+      seen.Push(inst.GetInstanceNum())
+    }
+  }
+
+  inMemoryInstances := newInstances
+}
+
 QuickLog( msg) {
   file := FileOpen("data/devlog.log", "a -rw")
   if (!IsObject(file)) {
@@ -16,8 +116,23 @@ HwndIsFullscreen(hwnd) { ; ahk_id or ID is HWND
   WinGetPos,,, w, h, ahk_id %hwnd%
   return (w == A_ScreenWidth && h == A_ScreenHeight)
 }
+
+CreateBackgroundArray(){
+  if (!scrollBgResetting){
+    return
+  }
+  backgroundArray := []
+  for i,inst in inMemoryInstances {
+    if (!inst.IsLocked()){
+      backgroundArray.Push(inst)
+    }
+  }
+  bgPos := 1
+}
 ; TEMP hotkey section for pre WallManager OOP approach to help with hotkeys
 LockInstanceByGridIndex(gridIndex, resetRestOfGrid:=false){
+  if (gridIndex>GetLockedInstanceCount())
+    gridIndex := gridIndex - GetLockedInstanceCount()
   inst := inMemoryInstances[gridIndex]
   if (inst.IsLocked()){
     return
@@ -84,7 +199,7 @@ FocusResetHoveredInstance() {
 ResetGridInstances() {
   loop, % GetGridUsageInstancecount() {
     inst := inMemoryInstances[A_Index]
-    if ( inst.RecentlySwapped() ){
+    if ( inst.RecentlySwapped() || A_TickCount - inst.GetPreviewTime() < spawnProtection ){
       Continue
     }
     inst.Reset(bypassLock)
@@ -184,6 +299,22 @@ RunHide(Command)
   DllCall("FreeConsole")
   Process, Close, %cPid%
   Return Result
+}
+
+ReplacePreviewsInGrid(){
+  gridUsageCount := GetGridUsageInstancecount()
+  hasSwapped := False
+  loop %gridUsageCount%{
+
+    if (!FileExist(inMemoryInstances[A_Index].GetPreviewFile())){
+      if (SwapWithOldestPreviewReady(A_Index)){
+        hasSwapped := True
+      }
+    }
+  }
+  if (hasSwapped){
+    NotifyObs()
+  }
 }
 
 GetMcDir(pid)
@@ -401,12 +532,18 @@ GetActiveInstance(){
     if (inst.GetPID() == pid)
       return inst
   }
+
+  FileRead, activeInstance, data/instance.txt
+  for i, inst in inMemoryInstances {
+    if (inst.GetInstanceNum() == activeInstance)
+      return inst
+  }
+
   return
 }
 ExitWorld()
 {
   instance := GetActiveInstance()
-
   if (instance) {
     pid := instance.GetPID()
     if f1States[idx] ; goofy ghost pie removal
@@ -452,24 +589,23 @@ MousePosToInstNumber() {
     return (Floor(mY / instHeight) * cols) + Floor(mX / instWidth) + 1
   }
 
-  if (mx <= A_ScreenWidth * grid_estate && my <= A_ScreenHeight * grid_estate){ ; Inside Focus Grid
-    return inMemoryInstances[(Floor(mY / (A_ScreenHeight * grid_estate/rows) ) * cols) + Floor(mX / (A_ScreenWidth * grid_estate/cols )) + 1].GetInstanceNum()
+  if (mx <= A_ScreenWidth * screen_estate_horizontal && my <= A_ScreenHeight * screen_estate_vertical){ ; Inside Focus Grid
+    return inMemoryInstances[(Floor(mY / (A_ScreenHeight * screen_estate_vertical/rows) ) * cols) + Floor(mX / (A_ScreenWidth * screen_estate_horizontal/cols )) + 1].GetInstanceNum()
   }
-  if (my>= A_ScreenHeight * grid_estate && mx<=A_ScreenWidth * grid_estate) {
-    static locked_rows_before_rollover := 3
+  if (my>= A_ScreenHeight * screen_estate_vertical && mx<=A_ScreenWidth * screen_estate_horizontal) {
     locked_count:= GetLockedInstanceCount()
     locked_cols := Ceil(locked_count / locked_rows_before_rollover)
     locked_rows := Min(locked_count,locked_rows_before_rollover)
-    locked_inst_width := (A_ScreenWidth*grid_estate) / locked_cols
-    locked_inst_height := (A_ScreenHeight * (1-grid_estate)) / locked_rows
-    index := GetGridUsageInstancecount() + (Floor((mY - A_ScreenHeight*grid_estate) / locked_inst_height) ) + Floor(mX / locked_inst_width) * locked_rows+ 1
+    locked_inst_width := (A_ScreenWidth*screen_estate_horizontal) / locked_cols
+    locked_inst_height := (A_ScreenHeight * (1-screen_estate_vertical)) / locked_rows
+    index := GetGridUsageInstancecount() + (Floor((mY - A_ScreenHeight*screen_estate_vertical) / locked_inst_height) ) + Floor(mX / locked_inst_width) * locked_rows+ 1
     if (!inMemoryInstances[index].IsLocked()){
       return -1
     }
     return inMemoryInstances[index].GetInstanceNum()
   }
 
-  if (mx>= A_ScreenWidth * grid_estate) { ; Inside passive instances
+  if (mx>= A_ScreenWidth * screen_estate_horizontal) { ; Inside passive instances
     index:= GetGridUsageInstancecount() + GetLockedInstanceCount() + Floor(my / (A_ScreenHeight / GetPassiveInstanceCount())) + 1
     return inMemoryInstances[index].GetInstanceNum()
   }
@@ -523,6 +659,15 @@ AffinityGet(pid)
 SwapWithOldest(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
 }
+
+SwapWithOldestPreviewReady(instanceIndex){
+  index:= GetOldestInstanceIndexOutsideOfGrid()
+  if (FileExist(inMemoryInstances[index].GetPreviewFile())){
+    Swap(inMemoryInstances,instanceIndex,GetOldestInstanceIndexOutsideOfGrid())
+    return True
+  }
+  return False
+}
 SwapWithFirstPassive(instanceIndex){
   if (GetPassiveInstanceCount()>0) {
     Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount()+GetLockedInstanceCount()+1)
@@ -531,6 +676,9 @@ SwapWithFirstPassive(instanceIndex){
   }
 }
 
+BgResetSwap(instanceIndex){
+  Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount())
+}
 MoveLast(hoveredIndex){
   inst := inMemoryInstances[hoveredIndex]
   inMemoryInstances.RemoveAt(hoveredIndex)
@@ -653,7 +801,6 @@ GetIdleNonLockedInstances(){
       count++
     }
   }
-  QuickLog("Idle Instances: " . count)
   return count
 }
 
@@ -677,6 +824,8 @@ GetProjectorID(ByRef projID) {
   SendLog(LOG_LEVEL_WARNING, "Could not detect OBS Fullscreen Projector window. Will try again at next Wall action. If this persists, contact Boyenn / Ravalle", A_TickCount)
 }
 ToWall(comingFrom) {
+  if (scrollBgResetting)
+    ReorderInMemoryInstances()
   FileDelete,data/instance.txt
   FileAppend,0,data/instance.txt
   FileDelete,data/bg.txt

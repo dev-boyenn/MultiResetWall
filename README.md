@@ -1,3 +1,36 @@
+## How to setup Scroll Background resetting
+Scroll background resetting is basically tinder on crack. It shows you 5 instances stacked on top of eachother, but only allows locking the middle one. Just like in tinder, you can choose to keep the current preview or scroll past it, however it also shows you the upcoming 2 instances and the previous 2 instances. This allows you to scroll through instances much faster and requires less concentration. Whenever you completely scroll past an instance ( So it was in the middle, you didnt like it. Then it moved to the second position, you still didnt like it, then it moved to the first position, you STILL didnt like it, and then it moves out of view ) it is reset. Whenever you press the lock hotkey, it locks the middle instance.
+A big advantage of scroll resetting is that the amount of hotkeys required is independent of the amount of instances in your grid. Compared to tinder, it also has the advantage that you reset much more instances in one quick view. You just look over, if you don't like all 5, you can scroll 5 times at once quickly.
+
+- Create another duplicate of your wall scene, name it something like "Background"
+- Add bgreset.py to your obs scripts
+- Configure bgreset.py properties in OBS, use the new "Background" Scene
+- Reload script ( Refresh button )
+- Enable scrollBgResetting in settings.ahk
+- Configure the SCROLL BG RESETTING section in hotkeys.ahk. I strongly recommend actually using WheelUp and Wheeldown, but you can ofcourse use any other hotkey if you actually use the scroll wheel in game ( Skill issue, learn to hotkey please )
+- While playing, open a Windowed projector of the background scene on your second monitor.
+- Use the hotkeys in the SCROLL BG RESETTING section in hotkeys.ahk.
+- Optional, add a subscene of the background scene to your gameplay scenes, so your viewers can watch you epic gamer moment multitasking resetting while playing a seed
+
+## How to setup Grid Background resetting
+Grid background resettings works similar to the focus grid in the wall. 
+You only see that focus grid and while playing minecraft you can hit hotkeys to lock one of them or to reset all of them.
+A big disadvantage of grid resetting is the amount of hotkeys required scales with the amount of instances you have in your grid. The advantage of grid resetting is that you need less keypresses to reset more instances at once.
+
+- Create another duplicate of your wall scene, name it something like "Background"
+- Create a copy of index.py in obsscripts, and add it to OBS scripts
+- Configure the copy index. properties in OBS, use the new "Background" Scene, set screen_estate vertical and horizontal to 1, set rows and cols to what you had in the original index.py ( They cannot be different for now, sorry )
+- Reload script ( Refresh button )
+- Configure the GRID BG RESETTING section in hotkeys.ahk
+- While playing, open a Windowed projector of the background scene on your second monitor.
+- Use the hotkeys in the GRID BG RESETTING section in hotkeys.ahk to lock previews you like or go to the next grid
+- Optional, add a subscene of the background scene to your gameplay scenes, so your viewers can watch you epic gamer moment multitasking resetting while playing a seed
+
+## How to setup classic tinder
+
+You don't. I break shit all the time deal with it widePeepoHappy
+
+# Specnr README below, half of it is outdated for this macro, will edit later
 # MultiResetWall
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/specnr)
 
