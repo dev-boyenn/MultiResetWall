@@ -2,12 +2,6 @@ from math import ceil, floor
 import obspython as S
 import os
 
-# Configure
-wall_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(wall_scene_name))
-screen_width = S.obs_source_get_width(wall_scene)
-screen_height = S.obs_source_get_height(wall_scene)
-S.obs_source_release(wall_scene)
-
 # Don't configure
 
 focus_cols = 0
@@ -208,6 +202,8 @@ def script_update(settings):
     global screen_estate_horizontal
     global screen_estate_vertical
     global locked_rows_before_rollover
+    global screen_width
+    global screen_height
     wall_scene_name = S.obs_data_get_string(settings, "scene")
     instance_source_format = S.obs_data_get_string(settings, "instance_source_format")
     focus_rows = S.obs_data_get_int(settings, "focus_rows")
@@ -215,7 +211,11 @@ def script_update(settings):
     screen_estate_horizontal = S.obs_data_get_double(settings, "screen_estate_horizontal")
     screen_estate_vertical = S.obs_data_get_double(settings, "screen_estate_vertical")
     locked_rows_before_rollover = S.obs_data_get_int(settings, "locked_rows_before_rollover")
+    wall_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(wall_scene_name))
+    screen_width = S.obs_source_get_width(wall_scene)
+    screen_height = S.obs_source_get_height(wall_scene)
+    S.obs_source_release(wall_scene)
     S.timer_remove(test)
-    S.timer_add(test,  100)
+    S.timer_add(test, 100)
 
 
