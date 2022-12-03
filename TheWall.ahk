@@ -83,6 +83,7 @@ for i, inst in inMemoryInstances {
   idle := mcdir . "idle.tmp"
   hold := mcdir . "hold.tmp"
   preview := mcdir . "preview.tmp"
+  previewpercent := mcdir . "previewpercent.tmp"
   lock := mcdir . "lock.tmp"
   kill := mcdir . "kill.tmp"
   VerifyInstance(mcdir, pid, i)
@@ -93,7 +94,7 @@ for i, inst in inMemoryInstances {
   inst.fsKey := fsKeys[i]
   
   SendLog(LOG_LEVEL_INFO, Format("Running a reset manager: {1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16}", pid, logs, idle, hold, preview, lock, kill, resetKey, lpKey, i, playBitMask, lockBitMask, highBitMask, midBitMask, lowBitMask, bgLoadBitMask), A_TickCount)
-  Run, "%A_ScriptDir%\scripts\reset.ahk" %pid% "%logs%" "%idle%" "%hold%" "%preview%" "%lock%" "%kill%" %resetKey% %lpKey% %i% %playBitMask% %lockBitMask% %highBitMask% %midBitMask% %lowBitMask% %bgLoadBitMask%, %A_ScriptDir%,, rmpid
+  Run, "%A_ScriptDir%\scripts\reset.ahk" %pid% "%logs%" "%idle%" "%hold%" "%preview%" "%lock%" "%kill%" %resetKey% %lpKey% %i% %playBitMask% %lockBitMask% %highBitMask% %midBitMask% %lowBitMask% %bgLoadBitMask% "%previewPercent%", %A_ScriptDir%,, rmpid
   DetectHiddenWindows, On
   WinWait, ahk_pid %rmpid%
   DetectHiddenWindows, Off
@@ -171,7 +172,7 @@ if (!disableTTS)
 #Persistent
 OnExit, ExitSub
 SetTimer, CheckScripts, 20
-SetTimer, ReplacePreviewsInGrid, 100
+SetTimer, ReplacePreviewsInGrid, % LoadObsSetting("update_interval")
 return
 
 ExitSub:

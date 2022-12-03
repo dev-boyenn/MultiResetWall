@@ -9,3 +9,4 @@ test.ahk
 /data/*.json
 *-dev*
 *.tmp
+obssettings.ini

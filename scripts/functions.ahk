@@ -1,7 +1,12 @@
 ; v1.0
-global usewincalls:=true
 ; Don't use for user facing logs, just for during development, remove calls to it before pushing
 ; Get-Content .\data\devlog.log -Tail 10 -Wait for reading, doesnt close on macro reload
+
+LoadObsSetting(name){
+  returnValue := ""
+  IniRead, returnValue, obssettings.ini , obs, %name%
+  return returnValue
+}
 
 FloorMod(vNum1, vNum2)
 {
@@ -179,11 +184,7 @@ ResetHoveredInstance(){
   if (!inst.IsLocked()){
     SwapWithOldest(hoveredIndex)
   } else {
-    if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
-      Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
-    } else {
-      MoveLast(hoveredIndex)
-    }
+    MoveLast(hoveredIndex)
   }
   inst.Reset()
   NotifyObs()
@@ -206,6 +207,19 @@ ResetGridInstances() {
     SwapWithOldest(A_Index)
   }
   NotifyObs()
+}
+
+UnlockLast() {
+  index := GetGridUsageInstancecount()+GetLockedInstanceCount()
+  inst := inMemoryInstances[index]
+  if (!inst.IsLocked()){
+    return
+  }
+  if (GetGridUsageInstancecount() >= GetWantedGridInstanceCount())
+    MoveLast(index)
+  inst.Reset()
+  NotifyObs()
+  return
 }
 
 ; END temp hotkey section
@@ -241,7 +255,7 @@ CountAttempts() {
 }
 
 FindBypassInstance(activeNum:=-1, shouldCheckIdle := true) {
-  if ( shouldCheckIdle && GetIdleNonLockedInstances() > bypassThreshold ){
+  if ( shouldCheckIdle && GetIdleNonLockedInstances() >= bypassThreshold ){
     return -1
   }
   for i, inst in inMemoryInstances {
@@ -303,18 +317,14 @@ RunHide(Command)
 
 ReplacePreviewsInGrid(){
   gridUsageCount := GetGridUsageInstancecount()
-  hasSwapped := False
   loop %gridUsageCount%{
 
     if (!FileExist(inMemoryInstances[A_Index].GetPreviewFile())){
-      if (SwapWithOldestPreviewReady(A_Index)){
-        hasSwapped := True
-      }
+      SwapWithOldestPreviewReady(A_Index)
     }
   }
-  if (hasSwapped){
-    NotifyObs()
-  }
+
+  NotifyObs()
 }
 
 GetMcDir(pid)
@@ -502,9 +512,10 @@ GetThreads(bitmask){
   return Log(bitmask+1)/Log(2) + 1
 }
 getHwndForPid(pid) {
-  pidStr := "ahk_pid " . pid
-  WinGet, hWnd, ID, %pidStr%
-  return hWnd
+    pidStr := "ahk_pid " . pid
+    WinGet, hWnd, ID, %pidStr%
+    StringReplace, hWnd, hWnd, ffffffff
+    return hWnd
 }
 
 SwitchInstance(idx, skipBg:=false, from:=-1)
@@ -560,20 +571,19 @@ ExitWorld()
     WinRestore, ahk_pid %pid%
     if (mode == "C")
       nextInst := Mod(instance.GetInstanceNum(), instances) + 1
+    else if (mode == "P" && getPreviewUnlockedInstanceCountPast()<rows*cols)
+      nextInst := FindBypassInstance(instance.GetInstanceNum())
     else if ((mode == "B" || mode == "M" || mode == "S")){
       nextInst := FindBypassInstance(instance.GetInstanceNum(), mode =="S")
     }
+    MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
+    instance.Reset(true)
     if (nextInst > 0){
-      MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
-      instance.Reset(true)
       GetInstanceByNum(nextInst).SwitchTo()
     }else{
-      MoveLast(GetInstanceIndexByNum(instance.GetInstanceNum()))
-      instance.Reset(true)
       ToWall(idx)
     }
     SetAffinities(nextInst)
-
     NotifyObs()
     if (widthMultiplier){
       WinMove, ahk_pid %pid%,,0,0,%A_ScreenWidth%,%newHeight%
@@ -605,7 +615,7 @@ MousePosToInstNumber() {
     return inMemoryInstances[index].GetInstanceNum()
   }
 
-  if (mx>= A_ScreenWidth * screen_estate_horizontal) { ; Inside passive instances
+  if (mx>= A_ScreenWidth * screen_estate_horizontal && mx<A_ScreenWidth) { ; Inside passive instances
     index:= GetGridUsageInstancecount() + GetLockedInstanceCount() + Floor(my / (A_ScreenHeight / GetPassiveInstanceCount())) + 1
     return inMemoryInstances[index].GetInstanceNum()
   }
@@ -631,10 +641,23 @@ NotifyObs(){
     if (!inst.IsLocked() && A_Index>gridUsageInstanceCount){
       output := output . "H"
     }
-  }
 
-  FileDelete, data/obs.txt
-  FileAppend, %output%, data/obs.txt
+    if (!inst.GetPreviewTime()){
+      inst.SetDirt(true)
+      output := output . "D"
+    }else{
+      inst.SetDirt(false)
+    }
+
+    if (inst.GetPreviewPercent()>= freeze_percent && inst.GetInstanceNum() != GetActiveInstanceNum() && !inst.IsLocked()){
+        output := output . "F"
+    }
+  }
+  FileRead, oldOutput, data/obs.txt
+  if (oldOutput != output) {
+    FileDelete, data/obs.txt
+    FileAppend, %output%, data/obs.txt
+  }
   return output
 }
 
@@ -680,9 +703,13 @@ BgResetSwap(instanceIndex){
   Swap(inMemoryInstances,instanceIndex,GetGridUsageInstancecount())
 }
 MoveLast(hoveredIndex){
-  inst := inMemoryInstances[hoveredIndex]
-  inMemoryInstances.RemoveAt(hoveredIndex)
-  inMemoryInstances.Push(inst)
+  if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
+      Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
+  } else {
+    inst := inMemoryInstances[hoveredIndex]
+    inMemoryInstances.RemoveAt(hoveredIndex)
+    inMemoryInstances.Push(inst)
+  }
 }
 
 GetOldestInstanceIndexOutsideOfGrid(){
@@ -742,6 +769,28 @@ GetPassiveInstanceCount(){
     }
   }
   return passiveInstanceCount
+}
+
+getPreviewUnlockedInstanceCount(){
+  previewUnlockedInstanceCount := 0
+  for i,inst in inMemoryInstances {
+    if (!inst.isLocked() && inst.GetPreviewTime() > 0){
+      previewUnlockedInstanceCount++
+    }
+    
+  }
+  return previewUnlockedInstanceCount
+}
+
+getPreviewUnlockedInstanceCountPast(){
+  previewUnlockedInstanceCount := 0
+  for i,inst in inMemoryInstances {
+    if (!inst.isLocked() && !inst.hasDirt() && inst.GetPreviewPercent() > 50){
+      previewUnlockedInstanceCount++
+    }
+    
+  }
+  return previewUnlockedInstanceCount
 }
 ; Differs from rows*cols in that sometimes the user locks so many instances that the grid isnt filled
 GetGridUsageInstancecount(){

@@ -19,10 +19,13 @@ return
   ; ::CheckFor("buried_treasure")
   ; ::ToggleThin()
 
-  ; For background resetting, set index to position in grid. add true if you want it to also reset all other grid instances
-  ; (Remove semicolon ';' and set a hotkey)
+  ; ==== SCROLL BACKGROUND RESETTING ====
+  ; *WheelUp::BgScrollBackward() ; Scrolls backward one
+  ; *WheelDown::BgScrollForward() ; Scrolls forward one, resetting the highest instance that just left the view
+  ; *F21::BgLock() ; Locks the middle instance
+  ; ==== GRID BACKGROUND RESETTING ====
+  ; For Grid background resetting, set index to position in grid. add true if you want it to also reset all other grid instances
   ; ::LockInstanceByGridIndex(1,true)
-  ; For background resetting
   ; ::ResetGridInstances()
 }
 return

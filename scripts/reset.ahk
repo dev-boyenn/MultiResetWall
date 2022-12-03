@@ -29,16 +29,22 @@ global highBitMask := A_Args[13]
 global midBitMask := A_Args[14]
 global lowBitMask := A_Args[15]
 global bgLoadBitMask := A_Args[16]
+global previewPercentFile :=A_Args[17]
 
 global state := "unknown"
 global lastImportantLine := GetLineCount(logFile)
 global previewLoaded := true
+global dc := DllCall("GetDC", "UInt", getHwndForPid(pid))
+
 
 SendLog(LOG_LEVEL_INFO, Format("Instance {1} reset manager started: {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12} {13} {14} {15} {16}", idx, pid, logFile, idleFile, holdFile, previewFile, lockFile, killFile, resetKey, lpKey, playBitMask, lockBitMask, highBitMask, midBitMask, lowBitMask, bgLoadBitMask), A_TickCount)
 
 OnMessage(MSG_RESET, "Reset")
 
 Reset() {
+  Critical, On
+  SendLog(LOG_LEVEL_INFO, Format("Instance {1} MSG RESET", idx), A_TickCount)
+
   if ((state == "resetting" && mode != "C") || state == "kill" || FileExist(killFile)) {
     FileDelete, %holdFile%
     SendLog(LOG_LEVEL_INFO, Format("Instance {1} discarding reset management, state: {2}", idx, state), A_TickCount)
@@ -50,7 +56,6 @@ Reset() {
   FileDelete, %previewFile%
   FileDelete, %idleFile%
   lastImportantLine := GetLineCount(logFile)
-  SetTimer, ManageReset, -%manageResetAfter%
   if (sounds == "A" || sounds == "F" || sounds == "R") {
     SoundPlay, A_ScriptDir\..\media\reset.wav
     if obsResetMediaKey {
@@ -59,13 +64,17 @@ Reset() {
       send {%obsResetMediaKey% up}
     }
   }
+  SetTimer, ManageReset, -%manageResetAfter%
+
 }
 
 ManageReset() {
+  Critical, Off
+  SendLog(LOG_LEVEL_INFO, Format("Instance {1} starting reset management", idx), A_TickCount)
+
   start := A_TickCount
   state := "resetting"
   ManageThisAffinity()
-  SendLog(LOG_LEVEL_INFO, Format("Instance {1} starting reset management", idx), A_TickCount)
   while (True) {
     if (state == "kill" || FileExist(killFile)) {
       SendLog(LOG_LEVEL_INFO, Format("Instance {1} killing reset management from loop", idx), A_TickCount)
@@ -73,21 +82,56 @@ ManageReset() {
       return
     }
     sleep, %resetManagementLoopDelay%
+    if(state == "resetting"){
+        VarSetCapacity(Rect, 16)
+        DllCall("GetClientRect", "UInt", getHwndForPid(pid),"Ptr",&Rect)
+        pix := NumGet(Rect, 12, "Int") - 1
+        SetFormat, IntegerFast, Hex
+        Loop, 900 {
+
+          if (state == "kill" || FileExist(killFile)) {
+            SendLog(LOG_LEVEL_INFO, Format("Instance {1} killing reset management from loop", idx), A_TickCount)
+            FileDelete, %killFile%
+            return
+          }
+          bottomLeft := DllCall("GetPixel", "UInt", dc, "Int", 0, "Int", pix,  "UInt")
+          SendLog(LOG_LEVEL_INFO, Format("Instance {1} looking for pixel, found {2}", idx, bottomLeft), A_TickCount)
+
+          if(((A_TickCount - start) > 5000 and bottomLeft != 0x17212E) || bottomLeft == 0x0){
+            SetFormat, IntegerFast, D
+            ControlSend,, {Blind}{F3 Down}{Esc}{F3 Up}, ahk_pid %pid%
+            state := "preview"
+            FileDelete, %holdFile%
+            FileDelete, %previewFile%
+            FileAppend, %A_TickCount%, %previewFile%
+            SendLog(LOG_LEVEL_INFO, Format("Instance {1} found preview through pixel read", idx), A_TickCount)
+          
+            SetTimer, ManageThisAffinity, -%previewBurstLength% ; turn down previewBurstLength after preview detected
+            lastImportantLine := GetLineCount(logFile)
+
+            Break
+            
+          }
+          sleep, 30
+        }
+    }
+    
     Loop, Read, %logFile%
     {
       if (A_Index <= lastImportantLine)
         Continue
       if (state == "resetting" && InStr(A_LoopReadLine, "Starting Preview")) {
-        ControlSend,, {Blind}{F3 Down}{Esc}{F3 Up}, ahk_pid %pid%
-        state := "preview"
-        lastImportantLine := GetLineCount(logFile)
-        FileDelete, %holdFile%
-        FileDelete, %previewFile%
-        FileAppend, %A_TickCount%, %previewFile%
-        SendLog(LOG_LEVEL_INFO, Format("Instance {1} found preview on log line: {2}", idx, A_Index), A_TickCount)
-        SetTimer, ManageThisAffinity, -%previewBurstLength% ; turn down previewBurstLength after preview detected
+        ; ControlSend,, {Blind}{F3 Down}{Esc}{F3 Up}, ahk_pid %pid%
+        ; state := "preview"
+        ; lastImportantLine := GetLineCount(logFile)
+        ; FileDelete, %holdFile%
+        ; FileDelete, %previewFile%
+        ; FileAppend, %A_TickCount%, %previewFile%
+        ; SendLog(LOG_LEVEL_INFO, Format("Instance {1} found preview on log line: {2}", idx, A_Index), A_TickCount)
+        ; SetTimer, ManageThisAffinity, -%previewBurstLength% ; turn down previewBurstLength after preview detected
+        
         Continue 2
-      } else if (state != "idle" && InStr(A_LoopReadLine, "advancements")) {
+      } else if (state != "idle" && InStr(A_LoopReadLine, "0 advancements")) {
         SetTimer, Pause, -%beforePauseDelay%
         lastImportantLine := GetLineCount(logFile)
         FileDelete, %holdFile%
@@ -110,6 +154,8 @@ ManageReset() {
         return
       } else if (state == "preview" && InStr(A_LoopReadLine, "%")) {
         loadPercent := StrSplit(StrSplit(A_LoopReadLine, ": ")[3], "%")[1]
+        FileDelete, %previewPercentFile%
+        FileAppend, %loadPercent%, %previewPercentFile%
         if (loadPercent > previewLoadPercent && !FileExist(lockFile) && !previewLoaded) {
           previewLoaded := true
           SendLog(LOG_LEVEL_INFO, Format("Instance {1} {2}% loading finished", idx, previewLoadPercent), A_TickCount)

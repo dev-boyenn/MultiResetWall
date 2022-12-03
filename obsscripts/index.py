@@ -1,18 +1,16 @@
 from math import ceil, floor
 import obspython as S
 import os
-
-# Configure
-screen_width = 1920
-screen_height = 1080
+import re
+import configparser
 
 # Don't configure
 
-focus_cols = 0
-focus_rows = 0
-screen_estate_horizontal = 0
-screen_estate_vertical = 0
-locked_rows_before_rollover = 0
+focus_cols = 1
+focus_rows = 1
+screen_estate_horizontal = 1
+screen_estate_vertical = 1
+locked_rows_before_rollover = 1
 wall_scene_name = ""
 instance_source_format = ""
 focused_count = focus_rows * focus_cols
@@ -20,53 +18,77 @@ prev_instances = []
 prev_passive_count = 0
 prev_locked_count = 0
 lastUpdate = 0.0
-
-
-
+update_interval = 50
+freeze_percent = 70
+hide_dirt_mode = "cover"
+screen_width = 0
+screen_height = 0
 
 class FileInstance():
-    def __init__(self, suffix,locked,hidden):
+    def __init__(self, suffix, locked, hidden, dirt, freeze):
         self.suffix = suffix
         self.locked = locked
         self.hidden = hidden
+        self.dirt = dirt
+        self.freeze = freeze
+
     def __eq__(self, other):
         """Overrides the default implementation"""
         if isinstance(other, FileInstance):
             return self.suffix == other.suffix and self.locked == other.locked and self.hidden == other.hidden
         return False
+
     def __str__(self) -> str:
         return self.suffix + ("L"if self.locked else "") + ("H" if self.hidden else "")
     pass
 
 
-def move_source(source, x, y): 
+def move_source(source, x, y):
     if source:
-        pos = S.vec2();
-        S.obs_sceneitem_get_pos(source, pos)  
-        if(pos.x == x and pos.y == y):
+        pos = S.vec2()
+        S.obs_sceneitem_get_pos(source, pos)
+        if (pos.x == x and pos.y == y):
             return
         pos.x = x
         pos.y = y
         S.obs_sceneitem_set_pos(source, pos)
 
-def scale_source(source, width, height): 
+
+def scale_source(source, width, height):
     if source:
-        bounds = S.vec2();
-        bounds.x = width;
-        bounds.y=height;
-        S.obs_sceneitem_set_bounds(source, bounds)  
+        bounds = S.vec2()
+        bounds.x = width
+        bounds.y = height
+        S.obs_sceneitem_set_bounds(source, bounds)
 
 
-def parse_instances_string(input:str) -> 'list[FileInstance]': 
+def parse_instances_string(input: str) -> 'list[FileInstance]':
     raw_instances = input.split(",")
-    
-    return list(map(lambda inst: FileInstance(suffix=inst.split("L")[0].split("H")[0],locked="L" in inst, hidden = "H" in inst),raw_instances))
 
-def passive_instance_count(instances:'list[FileInstance]'):
-    return len(list(filter(lambda inst: inst.hidden ,instances)))
-def locked_instance_count(instances:'list[FileInstance]'):
-    return len(list(filter(lambda inst: inst.locked ,instances)))
+    return list(map(lambda inst: FileInstance(suffix=re.sub("L|D|H|F", "", inst), locked="L" in inst, hidden="H" in inst, dirt="D" in inst, freeze="F" in inst), raw_instances))
+
+
+def passive_instance_count(instances: 'list[FileInstance]'):
+    return len(list(filter(lambda inst: inst.hidden, instances)))
+
+
+def locked_instance_count(instances: 'list[FileInstance]'):
+    return len(list(filter(lambda inst: inst.locked, instances)))
+
+
 def test():
+
+    global screen_width
+    global screen_height
+    global wall_scene_name
+    if(screen_height == 0):
+        wall_scene = S.obs_scene_get_source(
+            S.obs_get_scene_by_name(wall_scene_name))
+
+        screen_width = S.obs_source_get_width(wall_scene)
+        screen_height = S.obs_source_get_height(wall_scene)
+        S.obs_source_release(wall_scene)
+        
     try:
         global lastUpdate
         global prev_instances
@@ -80,7 +102,8 @@ def test():
             return
 
         path = os.path.dirname(os.path.realpath(__file__))
-        filePath = os.path.abspath(os.path.realpath(os.path.join(path,'..','data','obs.txt')))
+        filePath = os.path.abspath(os.path.realpath(
+            os.path.join(path, '..', 'data', 'obs.txt')))
         if not os.path.exists(filePath):
             print("Can't find obs.txt")
             return
@@ -90,7 +113,7 @@ def test():
         lastUpdate = currentTime
 
         with open(filePath) as f:
-            
+
             raw_instances_string = f.readlines()[0]
             instances = parse_instances_string(raw_instances_string)
             print(raw_instances_string)
@@ -103,32 +126,70 @@ def test():
             for item in range(len(instances)):
                 if instances[item].hidden:
                     if passive_count == prev_passive_count and instances[item] == prev_instances[item]:
-                        backupRow+=1
+                        backupRow += 1
                         continue
-                    scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
+                    scene_item = S.obs_scene_find_source(
+                        test_scene, instance_source_format.replace("*", instances[item].suffix))
                     inst_height = screen_height / passive_count
-                    move_source(scene_item, screen_width*screen_estate_horizontal,backupRow * inst_height )
-                    scale_source(scene_item,screen_width*(1-screen_estate_horizontal),inst_height)
-                    backupRow+=1
+                    move_source(scene_item, screen_width *
+                                screen_estate_horizontal, backupRow * inst_height)
+                    scale_source(scene_item, screen_width *
+                                 (1-screen_estate_horizontal), inst_height)
+                    backupRow += 1
                     continue
                 if instances[item].locked:
                     if locked_count == prev_locked_count and instances[item] == prev_instances[item]:
-                        lockedIndex+=1
+                        lockedIndex += 1
                         continue
-                    scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
+                    scene_item = S.obs_scene_find_source(
+                        test_scene, instance_source_format.replace("*", instances[item].suffix))
 
-                    inst_width = (screen_width*screen_estate_horizontal) / locked_cols
-                    inst_height = (screen_height * (1-screen_estate_vertical)) / min(locked_count,locked_rows_before_rollover)
-                    move_source(scene_item, (inst_width * floor(lockedIndex / locked_rows_before_rollover)) ,screen_height * screen_estate_vertical + inst_height * (lockedIndex%locked_rows_before_rollover))
-                    scale_source(scene_item,inst_width, inst_height )
-                    lockedIndex+=1
+                    inst_width = (
+                        screen_width*screen_estate_horizontal) / locked_cols
+                    inst_height = (screen_height * (1-screen_estate_vertical)) / \
+                        min(locked_count, locked_rows_before_rollover)
+                    move_source(scene_item, (inst_width * floor(lockedIndex / locked_rows_before_rollover)),
+                                screen_height * screen_estate_vertical + inst_height * (lockedIndex % locked_rows_before_rollover))
+                    scale_source(scene_item, inst_width, inst_height)
+                    lockedIndex += 1
                     continue
                 row = floor(item/focus_cols)
-                col = floor(item%focus_cols) 
+                col = floor(item % focus_cols)
 
-                scene_item = S.obs_scene_find_source(test_scene, instance_source_format.replace("*",instances[item].suffix))
-                move_source(scene_item, col*(screen_width*screen_estate_horizontal/focus_cols),row*(screen_height*screen_estate_vertical/focus_rows))
-                scale_source(scene_item,screen_width*screen_estate_horizontal/focus_cols,screen_height*screen_estate_vertical/focus_rows)
+                scene_item = S.obs_scene_find_source(
+                    test_scene, instance_source_format.replace("*", instances[item].suffix))
+                move_source(scene_item, col*(screen_width*screen_estate_horizontal /
+                            focus_cols), row*(screen_height*screen_estate_vertical/focus_rows))
+                scale_source(scene_item, screen_width*screen_estate_horizontal /
+                             focus_cols, screen_height*screen_estate_vertical/focus_rows)
+
+            for item in range(len(instances)):
+
+                scene_item = S.obs_scene_find_source(
+                    test_scene, instance_source_format.replace("*", instances[item].suffix))
+                pos = S.vec2()
+                scale = S.vec2()
+
+                if instances[item].dirt and hide_dirt_mode == "hide":
+                    move_source(scene_item, screen_width, 0)
+                if hide_dirt_mode == "cover":
+                    S.obs_sceneitem_get_pos(scene_item, pos)
+                    S.obs_sceneitem_get_bounds(scene_item, scale)
+                    dirt_item = S.obs_scene_find_source(test_scene, "Dirt " + instances[item].suffix)
+                    move_source(dirt_item, pos.x, pos.y)
+                    S.obs_sceneitem_set_bounds_type(dirt_item,1)
+                    S.obs_sceneitem_set_bounds(dirt_item,scale)
+                    S.obs_sceneitem_set_visible(dirt_item,instances[item].dirt)
+
+                if (freeze_percent > 0):
+                    filter = S.obs_source_get_filter_by_name(
+                        S.obs_sceneitem_get_source(scene_item), "Freeze filter")
+
+                    if (instances[item].freeze):
+                        S.obs_source_set_enabled(filter, True)
+                    else:
+                        S.obs_source_set_enabled(filter, False)
+
             prev_instances = instances
             prev_passive_count = passive_count
             prev_locked_count = locked_count
@@ -136,12 +197,22 @@ def test():
         print(e)
         return
 
+
+def create_group(props, desc):
+
+    group = S.obs_properties_create()
+    groupprop = S.obs_properties_add_group(
+        props, desc, desc, S.OBS_GROUP_NORMAL, group)
+    S.obs_property_set_long_description(groupprop, "aaaa")
+    return group
+
+
 def script_properties():  # ui
     props = S.obs_properties_create()
     p = S.obs_properties_add_list(
         props,
         "scene",
-        "Wall Scene\n Select the wall scene you will fullscreen projector.",
+        "Wall Scene",
         S.OBS_COMBO_TYPE_EDITABLE,
         S.OBS_COMBO_FORMAT_STRING,
     )
@@ -151,54 +222,145 @@ def script_properties():  # ui
         name = S.obs_source_get_name(scene)
         S.obs_property_list_add_string(p, name, name)
     S.source_list_release(scenes)
-    S.obs_properties_add_text(
-        props,
-        "instance_source_format",
-        "Instance Source Format\nThis refers to the names of the gamecapture sources you have inside of your wall scene. \n Use * for numbers.\nExample: RSG*",
-        S.OBS_TEXT_DEFAULT
+
+
+
+   
+    S.obs_property_set_long_description(
+        S.obs_properties_add_text(
+            props,
+            "instance_source_format",
+            "Instance Source Format",
+            S.OBS_TEXT_DEFAULT
+        ),
+        "Instance Source Format\nThe names of the captures in your Wall scene.\nUse * for numbers\nExample: main mc *",
     )
 
     S.obs_properties_add_int(
-        props,
+        create_group(props, "Number of rows ( Vertical ) in the focus grid."),
         "focus_rows",
-        "Grid rows\nAmount of rows in the focus grid. Set rows in settings.ahk to the same number",
-        1,
+        "Focus Grid Rows",
+        0,
         4,
         1
     )
     S.obs_properties_add_int(
-        props,
+        create_group(
+            props, "Number of Columns ( Horizontal ) in the focus grid."),
         "focus_cols",
-        "Grid cols\nAmount of columns in the focus grid. Set cols in settings.ahk to the same number",
-        1,
+        "Focus Grid Cols",
+        0,
         4,
         1
     )
+
     S.obs_properties_add_float(
-        props,
+        create_group(
+            props, "Ratio of screen width used for the focus grid. (0-1)"),
         "screen_estate_horizontal",
-        "Screen estate\nThe percentage of the width screen used for the focus grid\n. Between 0 and 1",
+        "Horizontal screen estate",
         0,
         1,
         .1
     )
+
     S.obs_properties_add_float(
-        props,
+        create_group(
+            props, "Ratio of screen height used for the focus grid. (0-1)"),
         "screen_estate_vertical",
-        "Screen estate\nThe percentage of the height screen used for the focus grid\n. Between 0 and 1",
+        "Vertical screen estate",
         0,
         1,
         .1
     )
     S.obs_properties_add_int(
-        props,
+        create_group(props, "How many insts per row in the locked grid."),
         "locked_rows_before_rollover",
-        "Specifies how many rows have to be reached in the locked section to start a new column.\n For example, having this set to 2 makes the locked layout ( in order of locked instance count ): 1x1,2x1,2x2,2x2,2x3,2x3, ...",
-        1,
-        4,
+        "Locked Rows Before Rollover",
+        0,
+        5,
         1
     )
+    S.obs_properties_add_int(
+        create_group(
+            props, "Proactive moving speed ( Higher = slower, less lag )"),
+        "update_interval",
+        "Update Interval ( miliseconds )",
+        10,
+        2000,
+        10
+    )
+    S.obs_properties_add_int(
+        create_group(props, "Instance Preview Freezing ( 0 - 100 )"),
+        "freeze_percent",
+        "Freeze Percent ( 0 for disable )",
+        0,
+        100,
+        5
+    )
+
+    p = S.obs_properties_add_list(
+        create_group(
+            props, "Hides loading screens to make things less jarring"),
+        "hide_dirt_mode",
+        "Hide Loading Screen Mode",
+        S.OBS_COMBO_TYPE_EDITABLE,
+        S.OBS_COMBO_FORMAT_STRING,
+    )
+
+    
+    S.obs_property_list_add_string(p, "hide", "hide")
+    S.obs_property_list_add_string(p, "none", "none")
+    S.obs_property_list_add_string(p, "cover", "cover")
+    S.source_list_release(scenes)
+
     return props
+
+# too lazy to rename, actually does more
+def create_dirt_covers():
+    wall_scene = S.obs_get_scene_by_name(wall_scene_name)
+    path = os.path.dirname(os.path.realpath(__file__))
+    filePath = os.path.abspath(os.path.realpath(
+        os.path.join(path, '..', 'media', 'dirt.png')))
+
+    scene_items = S.obs_scene_enum_items(wall_scene)
+    if scene_items is not None:
+        for scene_item in scene_items:
+            name = S.obs_source_get_name(
+                S.obs_sceneitem_get_source(scene_item))
+            if re.sub('\d+', '*', name) == instance_source_format:
+                # Keeping this print so we can spot quicker if people mess up their instance source format
+                print("Found instance " +
+                      re.sub('[^0-9]', "", name) + " in gamecapture \"" + name + "\"")
+
+                settings = S.obs_data_create()
+                filter = S.obs_source_create_private(
+                    "freeze_filter", "Freeze filter", settings
+                )
+                S.obs_source_filter_remove(S.obs_sceneitem_get_source(scene_item), S.obs_source_get_filter_by_name(
+                    S.obs_sceneitem_get_source(scene_item), "Freeze filter"))
+                S.obs_source_filter_add(
+                    S.obs_sceneitem_get_source(scene_item), filter)
+
+                # Found an instance source, looking for dirt cover now
+                dirt_cover_name = "Dirt " + re.sub('[^0-9]', "", name)
+                dirt_cover_source = S.obs_scene_find_source(wall_scene, dirt_cover_name)
+                if dirt_cover_source:
+                    # Dirt cover for this instance already exists
+                    if hide_dirt_mode != "cover":
+                        S.obs_sceneitem_remove(dirt_cover_source)
+                    continue
+                if hide_dirt_mode == "cover":
+                    settings = S.obs_data_create()
+                    S.obs_data_set_string(
+                        settings, "file", filePath
+                    )
+                    source = S.obs_source_create(
+                        "image_source", dirt_cover_name, settings, None)
+                    S.obs_scene_add(wall_scene, source)
+
+
+
 def script_update(settings):
     global wall_scene_name
     global instance_source_format
@@ -207,14 +369,79 @@ def script_update(settings):
     global screen_estate_horizontal
     global screen_estate_vertical
     global locked_rows_before_rollover
+    global screen_width
+    global screen_height
+    global update_interval
+    global freeze_percent
+    global prev_instances
+    global prev_locked_count
+    global prev_passive_count
+    global lastUpdate
+    global hide_dirt_mode
+
     wall_scene_name = S.obs_data_get_string(settings, "scene")
-    instance_source_format = S.obs_data_get_string(settings, "instance_source_format")
-    focus_rows = S.obs_data_get_int(settings, "focus_rows")
-    focus_cols = S.obs_data_get_int(settings, "focus_cols")
-    screen_estate_horizontal = S.obs_data_get_double(settings, "screen_estate_horizontal")
-    screen_estate_vertical = S.obs_data_get_double(settings, "screen_estate_vertical")
-    locked_rows_before_rollover = S.obs_data_get_int(settings, "locked_rows_before_rollover")
+    S.obs_data_set_string(settings, "scene", wall_scene_name)
+
+    instance_source_format = S.obs_data_get_string(
+        settings, "instance_source_format")
+    S.obs_data_set_string(
+        settings, "instance_source_format", instance_source_format)
+
+    focus_rows = S.obs_data_get_int(settings, "focus_rows") or 2
+    S.obs_data_set_int(settings, "focus_rows", focus_rows)
+
+    focus_cols = S.obs_data_get_int(settings, "focus_cols") or 2
+    S.obs_data_set_int(settings, "focus_cols", focus_cols)
+
+    screen_estate_horizontal = S.obs_data_get_double(
+        settings, "screen_estate_horizontal") or 0.5
+    S.obs_data_set_double(settings, "screen_estate_horizontal",
+                       screen_estate_horizontal)
+
+    screen_estate_vertical = S.obs_data_get_double(
+        settings, "screen_estate_vertical") or 0.5
+    S.obs_data_set_double(settings, "screen_estate_vertical",
+                       screen_estate_vertical)
+
+    locked_rows_before_rollover = S.obs_data_get_int(
+        settings, "locked_rows_before_rollover") or 2
+    S.obs_data_set_int(settings, "locked_rows_before_rollover",
+                       locked_rows_before_rollover)
+
+    update_interval = S.obs_data_get_int(settings, "update_interval") or 30
+    S.obs_data_set_int(settings, "update_interval",
+                       update_interval)
+
+    freeze_percent = S.obs_data_get_int(settings, "freeze_percent")
+    S.obs_data_set_int(settings, "freeze_percent", freeze_percent)
+    hide_dirt_mode = S.obs_data_get_string(settings, "hide_dirt_mode") or "cover"
+    print(hide_dirt_mode)
+    S.obs_data_set_string(settings, "hide_dirt_mode", hide_dirt_mode)
+
+    
+    prev_instances = []
+    prev_passive_count = 0
+    prev_locked_count = 0
+    lastUpdate = 0
+
+
+    create_dirt_covers()
+    update_config_file()
     S.timer_remove(test)
-    S.timer_add(test,  100)
+    S.timer_add(test,  update_interval)
 
 
+
+def update_config_file():
+    config = configparser.ConfigParser()
+    config['obs'] = {
+        'rows': focus_rows,
+        'cols': focus_cols,
+        'screen_estate_horizontal': format(screen_estate_horizontal, '.2f'),
+        'screen_estate_vertical': format(screen_estate_vertical, '.2f'),
+        'locked_rows_before_rollover': locked_rows_before_rollover,
+        'update_interval': update_interval,
+        'freeze_percent': freeze_percent
+    }
+    with open(os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'obssettings.ini'))), 'w') as configfile:
+        config.write(configfile)

@@ -7,6 +7,7 @@ class Instance {
         this.idx := idx
         this.lastReset := A_TickCount
         this.gridTime :=A_TickCount
+        this.hasReset := false
     }
 
     GetMcDir(){
@@ -29,10 +30,26 @@ class Instance {
     }
 
     GetPreviewTime(){
+        if (!this.hasReset){
+            return 1
+        }
         previewFile:= this.GetPreviewFile()
         FileRead, previewTime, %previewFile%
         previewTime += 0
         return previewTime
+    }
+     GetPreviewPercent(){
+        if (!this.hasReset){
+            return 100
+        }
+        previewFile:= this.GetPreviewPercentFile()
+        FileRead, previewTime, %previewFile%
+        previewTime += 0
+        return previewTime
+    }
+
+    GetPreviewPercentFile(){
+        return this.GetMcDir() . "previewpercent.tmp"
     }
     GetPID(){
         return this.pid
@@ -112,10 +129,14 @@ class Instance {
     }
 
     Reset(bypassLock:=true, extraProt:=0) {
+        this.hasReset := True
         if (!FileExist(this.GetHoldFile()) && (bypassLock || ((spawnProtection + extraProt + this.GetPreviewTime()) < A_TickCount && (!this.locked)) ))
         {
+            this.dirt := True
+
             this.lastReset:=A_TickCount
             FileDelete, % this.GetPreviewFile()
+            FileDelete, % this.GetPreviewPercentFile()
             FileAppend,, % this.GetHoldFile()
             SendLog(LOG_LEVEL_INFO, Format("Instance {1} valid reset triggered", this.GetInstanceNum()), A_TickCount)
             ControlSend, ahk_parent
@@ -129,6 +150,13 @@ class Instance {
             this.thin := false
             resets++
         }
+    }
+
+    SetDirt(dirt){
+        this.dirt := dirt
+    }
+    hasDirt(){
+        return this.dirt
     }
 
     SwitchTo(){
@@ -155,7 +183,7 @@ class Instance {
             DllCall("SetForegroundWindow", "uint",this.GetHwnd()) ; Probably only important in windowed, helps application take input without a Send Click
             DllCall("BringWindowToTop", "uint",this.GetHwnd())
             DllCall("AttachThreadInput", "uint",windowThreadProcessId,"uint",currentThreadId,"int",0)
-
+	    
             if unpauseOnSwitch
                 ControlSend,, {Blind}{Esc}, % "ahk_pid " . this.pid
             if (f1States[this.GetInstanceNum()] == 2)
