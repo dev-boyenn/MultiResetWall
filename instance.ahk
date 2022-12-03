@@ -161,6 +161,7 @@ class Instance {
 
     SwitchTo(){
         if ( FileExist(this.GetIdleFile()) || mode == "C") {
+            FileAppend,, %sleepBgLock%
             FileAppend,,% this.GetHoldFile()
             FileAppend,,% this.GetKillFile()
             FileDelete,data/instance.txt

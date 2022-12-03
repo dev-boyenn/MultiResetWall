@@ -175,9 +175,13 @@ SwitchToHoveredInstance(){
     NotifyObs()
 }
 
-ResetHoveredInstance(){
+ResetHoveredInstance(resetLastLockedIfNotHoveringLocked:=false){
   hoveredIndex:=GetHoveredInstanceIndex()
   inst := inMemoryInstances[hoveredIndex]
+  if(resetLastLockedIfNotHoveringLocked && !inst.IsLocked()){
+    ResetLastLocked()
+    return
+  }
   if ( inst.RecentlySwapped() ){
     return
   }
@@ -209,7 +213,7 @@ ResetGridInstances() {
   NotifyObs()
 }
 
-UnlockLast() {
+ResetLastLocked() {
   index := GetGridUsageInstancecount()+GetLockedInstanceCount()
   inst := inMemoryInstances[index]
   if (!inst.IsLocked()){
@@ -590,6 +594,7 @@ ExitWorld()
     }
     Winset, Bottom,, ahk_pid %pid%
     isWide := False
+    FileDelete, %sleepBgLock%
   }
 }
 

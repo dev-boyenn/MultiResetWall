@@ -33,6 +33,8 @@ global f1States := []
 global resets := 0
 global backGroundArray := []
 global bgPos := 1
+EnvGet, vUserProfile, USERPROFILE
+global sleepBgLock := vUserProfile . "/sleepbg.lock"
 
 EnvGet, threadCount, NUMBER_OF_PROCESSORS
 global playThreads := playThreadsOverride > 0 ? playThreadsOverride : threadCount ; total threads unless override
