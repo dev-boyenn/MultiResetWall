@@ -53,7 +53,7 @@ hasValue(haystack, needle) {
     return false
   for k,v in haystack
     if(v==needle)
-    return true
+      return true
   return false
 }
 ReorderInMemoryInstances(){
@@ -516,10 +516,10 @@ GetThreads(bitmask){
   return Log(bitmask+1)/Log(2) + 1
 }
 getHwndForPid(pid) {
-    pidStr := "ahk_pid " . pid
-    WinGet, hWnd, ID, %pidStr%
-    StringReplace, hWnd, hWnd, ffffffff
-    return hWnd
+  pidStr := "ahk_pid " . pid
+  WinGet, hWnd, ID, %pidStr%
+  StringReplace, hWnd, hWnd, ffffffff
+  return hWnd
 }
 
 SwitchInstance(idx, skipBg:=false, from:=-1)
@@ -597,7 +597,6 @@ ExitWorld()
     FileDelete, %sleepBgLock%
   }
 }
-
 MousePosToInstNumber() {
   MouseGetPos, mX, mY
   if (!grid_mode) {
@@ -630,7 +629,10 @@ MousePosToInstNumber() {
 }
 
 NotifyObs(){
+  static lastOBSUpdate
   output := ""
+  newActiveInstanceNum := GetActiveInstanceNum()
+  readyCount := 0
   gridUsageInstanceCount := GetGridUsageInstancecount() ; To prevent looping every time
   for i,inst in inMemoryInstances {
     nr := inst.GetInstanceNum()
@@ -641,28 +643,39 @@ NotifyObs(){
 
     if ( inst.IsLocked() ){
       output := output . "L"
+      if (FileExist(inst.GetIdleFile())){
+        readyCount := readyCount + 1
+      }
     }
 
     if (!inst.IsLocked() && A_Index>gridUsageInstanceCount){
       output := output . "H"
     }
 
-    if (!inst.GetPreviewTime()){
+    if (!inst.GetPreviewPercent()>0){
       inst.SetDirt(true)
       output := output . "D"
     }else{
       inst.SetDirt(false)
     }
 
-    if (inst.GetPreviewPercent()>= freeze_percent && inst.GetInstanceNum() != GetActiveInstanceNum() && !inst.IsLocked()){
-        output := output . "F"
+    if (inst.GetPreviewPercent() >= freeze_percent && nr != newActiveInstanceNum && !inst.IsLocked()){
+      output := output . "F"
+    }
+
+    if(nr == newActiveInstanceNum){
+      output:= output . "P"
     }
   }
-  FileRead, oldOutput, data/obs.txt
-  if (oldOutput != output) {
+  lastOBSUpdate := A_TickCount
+  FileReadLine, oldOutput, data/obs.txt,1
+  FileReadLine, oldReadyCount, data/obs.txt, 2
+  if (oldOutput != output  || readyCount!=oldReadyCount) {
     FileDelete, data/obs.txt
     FileAppend, %output%, data/obs.txt
+    FileAppend,`n%readyCount%, data/obs.txt
   }
+  
   return output
 }
 
@@ -709,7 +722,7 @@ BgResetSwap(instanceIndex){
 }
 MoveLast(hoveredIndex){
   if (GetGridUsageInstancecount() < GetWantedGridInstanceCount()) {
-      Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
+    Swap(inMemoryInstances, hoveredIndex,GetGridUsageInstancecount()+1)
   } else {
     inst := inMemoryInstances[hoveredIndex]
     inMemoryInstances.RemoveAt(hoveredIndex)
@@ -782,7 +795,7 @@ getPreviewUnlockedInstanceCount(){
     if (!inst.isLocked() && inst.GetPreviewTime() > 0){
       previewUnlockedInstanceCount++
     }
-    
+
   }
   return previewUnlockedInstanceCount
 }
@@ -793,7 +806,7 @@ getPreviewUnlockedInstanceCountPast(){
     if (!inst.isLocked() && !inst.hasDirt() && inst.GetPreviewPercent() > 50){
       previewUnlockedInstanceCount++
     }
-    
+
   }
   return previewUnlockedInstanceCount
 }
@@ -1479,7 +1492,7 @@ CheckOptionsForValue(file, optionsCheck, defaultValue) {
     ,"key.mouse.right", "RButton"
     ,"key.mouse.middle", "MButton"
     ,"key.mouse.4", "XButton1"
-  ,"key.mouse.5", "XButton2")
+    ,"key.mouse.5", "XButton2")
   FileRead, fileData, %file%
   if (RegExMatch(fileData, "[A-Z]\w{0}:(\/|\\).+.txt")) {
     file := fileData
@@ -1490,9 +1503,9 @@ CheckOptionsForValue(file, optionsCheck, defaultValue) {
       split := StrSplit(A_LoopReadLine, ":")
       if (split.MaxIndex() == 2)
         if keyArray[split[2]]
-        return keyArray[split[2]]
-      else
-        return split[2]
+          return keyArray[split[2]]
+        else
+          return split[2]
       SendLog(LOG_LEVEL_ERROR, Format("Couldn't parse options correctly, defaulting to '{1}'. Line: {2}", defaultKey, A_LoopReadLine), A_TickCount)
       return defaultValue
     }
