@@ -25,6 +25,7 @@ screen_width = 0
 screen_height = 0
 single_scene = False
 locked_ready_count_source_name = ""
+hide_when_playing_name = ""
 
 class FileInstance():
     def __init__(self, suffix, locked, hidden, dirt, freeze, playing):
@@ -136,7 +137,7 @@ def test():
                         if passive_count == prev_passive_count and instances[item] == prev_instances[item]:
                             backupRow += 1
                             continue
-                        scene_item = S.obs_scene_find_source(
+                        scene_item = S.obs_scene_find_source_recursive(
                             test_scene, instance_source_format.replace("*", instances[item].suffix))
                         inst_height = screen_height / passive_count
                         move_source(scene_item, screen_width *
@@ -149,7 +150,7 @@ def test():
                         if locked_count == prev_locked_count and instances[item] == prev_instances[item]:
                             lockedIndex += 1
                             continue
-                        scene_item = S.obs_scene_find_source(
+                        scene_item = S.obs_scene_find_source_recursive(
                             test_scene, instance_source_format.replace("*", instances[item].suffix))
 
                         inst_width = (
@@ -164,7 +165,7 @@ def test():
                     row = floor(item/focus_cols)
                     col = floor(item % focus_cols)
 
-                    scene_item = S.obs_scene_find_source(
+                    scene_item = S.obs_scene_find_source_recursive(
                         test_scene, instance_source_format.replace("*", instances[item].suffix))
                     move_source(scene_item, col*(screen_width*screen_estate_horizontal /
                                 focus_cols), row*(screen_height*screen_estate_vertical/focus_rows))
@@ -173,7 +174,7 @@ def test():
 
             for item in range(len(instances)):
 
-                scene_item = S.obs_scene_find_source(
+                scene_item = S.obs_scene_find_source_recursive(
                     test_scene, instance_source_format.replace("*", instances[item].suffix))
                 pos = S.vec2()
                 scale = S.vec2()
@@ -183,7 +184,7 @@ def test():
                 if hide_dirt_mode == "cover":
                     S.obs_sceneitem_get_pos(scene_item, pos)
                     S.obs_sceneitem_get_bounds(scene_item, scale)
-                    dirt_item = S.obs_scene_find_source(test_scene, "Dirt " + instances[item].suffix)
+                    dirt_item = S.obs_scene_find_source_recursive(test_scene, "Dirt " + instances[item].suffix)
                     move_source(dirt_item, pos.x, pos.y)
                     S.obs_sceneitem_set_bounds_type(dirt_item,1)
                     S.obs_sceneitem_set_bounds(dirt_item,scale)
@@ -197,12 +198,12 @@ def test():
                     else:
                         S.obs_source_set_enabled(filter, False)
                 if instances[item].playing and in_play_mode:
-                    scene_item = S.obs_scene_find_source(
+                    scene_item = S.obs_scene_find_source_recursive(
                     test_scene, instance_source_format.replace("*", instances[item].suffix))
                     move_source(scene_item, 0, 0)
                     scale_source(scene_item, screen_width, screen_height)
                     if hide_dirt_mode == "cover":
-                        dirt_item = S.obs_scene_find_source(test_scene, "Dirt " + instances[item].suffix)
+                        dirt_item = S.obs_scene_find_source_recursive(test_scene, "Dirt " + instances[item].suffix)
                         S.obs_sceneitem_set_visible(dirt_item,False)
 
                     if freeze_percent>0:
@@ -217,10 +218,14 @@ def test():
             prev_locked_count = locked_count
 
             if locked_ready_count_source_name:
-                text_source = S.obs_sceneitem_get_source(S.obs_scene_find_source(test_scene, locked_ready_count_source_name))
+                text_source = S.obs_sceneitem_get_source(S.obs_scene_find_source_recursive(test_scene, locked_ready_count_source_name))
                 textdata = S.obs_data_create()
                 S.obs_data_set_string(textdata, "text", ready_count)
                 S.obs_source_update(text_source,textdata)
+            if hide_when_playing_name:
+                scene_item = S.obs_scene_find_source_recursive(test_scene, hide_when_playing_name)
+                S.obs_sceneitem_set_visible(scene_item, not in_play_mode)
+                
     except Exception as e:
         print(e)
         return
@@ -349,11 +354,19 @@ def script_properties():  # ui
         S.OBS_COMBO_TYPE_EDITABLE,
         S.OBS_COMBO_FORMAT_STRING,
     )
+    hide_p = S.obs_properties_add_list(
+        create_group(props,"Source ( or group ) to hide when playing ( Single Scene only )"),
+        "hide_when_playing_name",
+        "Source Or Group",
+        S.OBS_COMBO_TYPE_EDITABLE,
+        S.OBS_COMBO_FORMAT_STRING,
+    )
     if scene_items is not None:
         for scene_item in scene_items:
             name = S.obs_source_get_name(
                 S.obs_sceneitem_get_source(scene_item))
             S.obs_property_list_add_string(p, name, name)
+            S.obs_property_list_add_string(hide_p, name, name)
    
     return props
 
@@ -387,7 +400,7 @@ def create_dirt_covers():
 
                 # Found an instance source, looking for dirt cover now
                 dirt_cover_name = "Dirt " + re.sub('[^0-9]', "", name)
-                dirt_cover_source = S.obs_scene_find_source(wall_scene, dirt_cover_name)
+                dirt_cover_source = S.obs_scene_find_source_recursive(wall_scene, dirt_cover_name)
                 if dirt_cover_source:
                     # Dirt cover for this instance already exists
                     if hide_dirt_mode != "cover":
@@ -422,6 +435,7 @@ def script_update(settings):
     global lastUpdate
     global hide_dirt_mode
     global locked_ready_count_source_name
+    global hide_when_playing_name
     global single_scene
 
     wall_scene_name = S.obs_data_get_string(settings, "scene")
@@ -465,6 +479,8 @@ def script_update(settings):
 
     locked_ready_count_source_name = S.obs_data_get_string(settings, "locked_ready_count_source_name") or ""
     S.obs_data_set_string(settings, "locked_ready_count_source_name", locked_ready_count_source_name)
+    hide_when_playing_name = S.obs_data_get_string(settings, "hide_when_playing_name") or ""
+    S.obs_data_set_string(settings, "hide_when_playing_name", hide_when_playing_name)
 
     
     prev_instances = []
