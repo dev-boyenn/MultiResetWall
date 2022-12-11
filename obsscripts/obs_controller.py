@@ -13,8 +13,8 @@ import shutil
 import csv
 import os
 
-wall_scene_name = "Test Verification"
-instance_scene_format = "Game *"
+wall_scene_name = ""
+instance_scene_format = ""
 
 
 logging.basicConfig(
@@ -56,6 +56,7 @@ def execute_cmd(cmd):
             inst_num = cmd[1]
             instance_scene = S.obs_scene_get_source(S.obs_get_scene_by_name(instance_scene_format.replace("*", str(inst_num))))
             S.obs_frontend_set_current_scene(instance_scene)
+            S.obs_source_release(instance_scene)
         elif (cmd[0] == "Reload"):
             script_init()
     except Exception as e:
@@ -107,8 +108,8 @@ def script_update(settings):
     global cmdsPath
     global wall_scene_name
     global instance_scene_format
-    wall_scene_name = S.obs_data_get_string(settings, "scene")
-    instance_scene_format = S.obs_data_get_string(settings, "instance_scene_format")
+    wall_scene_name = S.obs_data_get_string(settings, "scene") or ""
+    instance_scene_format = S.obs_data_get_string(settings, "instance_scene_format") or ""
     
     try:
         execute_cmd(["ToWall"])

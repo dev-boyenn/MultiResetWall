@@ -81,18 +81,18 @@ def locked_instance_count(instances: 'list[FileInstance]'):
 
 
 def test():
-
     global screen_width
     global screen_height
     global wall_scene_name
     if(screen_height == 0):
-        wall_scene = S.obs_scene_get_source(
-            S.obs_get_scene_by_name(wall_scene_name))
+        scene = S.obs_get_scene_by_name(wall_scene_name)
+        wall_scene = S.obs_scene_get_source(scene)
 
         screen_width = S.obs_source_get_width(wall_scene)
         screen_height = S.obs_source_get_height(wall_scene)
         S.obs_source_release(wall_scene)
-        
+        S.obs_scene_release(scene)
+            
     try:
         global lastUpdate
         global prev_instances
@@ -104,6 +104,7 @@ def test():
         if not test_scene:
             print("Can't find scene")
             return
+        S.obs_scene_release(test_scene)
 
         path = os.path.dirname(os.path.realpath(__file__))
         filePath = os.path.abspath(os.path.realpath(
@@ -137,8 +138,10 @@ def test():
                         if passive_count == prev_passive_count and instances[item] == prev_instances[item]:
                             backupRow += 1
                             continue
+                        test_scene = S.obs_get_scene_by_name(wall_scene_name)
                         scene_item = S.obs_scene_find_source_recursive(
                             test_scene, instance_source_format.replace("*", instances[item].suffix))
+                        S.obs_scene_release(test_scene)
                         inst_height = screen_height / passive_count
                         move_source(scene_item, screen_width *
                                     screen_estate_horizontal, backupRow * inst_height)
@@ -146,12 +149,14 @@ def test():
                                     (1-screen_estate_horizontal), inst_height)
                         backupRow += 1
                         continue
-                    if instances[item].locked :
+                    if instances[item].locked:
                         if locked_count == prev_locked_count and instances[item] == prev_instances[item]:
                             lockedIndex += 1
                             continue
+                        test_scene = S.obs_get_scene_by_name(wall_scene_name)
                         scene_item = S.obs_scene_find_source_recursive(
                             test_scene, instance_source_format.replace("*", instances[item].suffix))
+                        S.obs_scene_release(test_scene)
 
                         inst_width = (
                             screen_width*screen_estate_horizontal) / locked_cols
@@ -165,65 +170,78 @@ def test():
                     row = floor(item/focus_cols)
                     col = floor(item % focus_cols)
 
+                    test_scene = S.obs_get_scene_by_name(wall_scene_name)
                     scene_item = S.obs_scene_find_source_recursive(
                         test_scene, instance_source_format.replace("*", instances[item].suffix))
+                    S.obs_scene_release(test_scene)
                     move_source(scene_item, col*(screen_width*screen_estate_horizontal /
                                 focus_cols), row*(screen_height*screen_estate_vertical/focus_rows))
                     scale_source(scene_item, screen_width*screen_estate_horizontal /
                                 focus_cols, screen_height*screen_estate_vertical/focus_rows)
 
             for item in range(len(instances)):
-
-                scene_item = S.obs_scene_find_source_recursive(
-                    test_scene, instance_source_format.replace("*", instances[item].suffix))
-                pos = S.vec2()
-                scale = S.vec2()
+                test_scene = S.obs_get_scene_by_name(wall_scene_name)
+                scene_item = S.obs_scene_find_source_recursive(test_scene, instance_source_format.replace("*", instances[item].suffix))
+                S.obs_scene_release(test_scene)
 
                 if in_play_mode or  (instances[item].dirt and hide_dirt_mode == "hide"):
                     move_source(scene_item, screen_width, 0)
                 if hide_dirt_mode == "cover":
+                    pos = S.vec2()
+                    scale = S.vec2()
                     S.obs_sceneitem_get_pos(scene_item, pos)
                     S.obs_sceneitem_get_bounds(scene_item, scale)
+                    test_scene = S.obs_get_scene_by_name(wall_scene_name)
                     dirt_item = S.obs_scene_find_source_recursive(test_scene, "Dirt " + instances[item].suffix)
+                    S.obs_scene_release(test_scene)
                     move_source(dirt_item, pos.x, pos.y)
                     S.obs_sceneitem_set_bounds_type(dirt_item,1)
                     S.obs_sceneitem_set_bounds(dirt_item,scale)
                     S.obs_sceneitem_set_visible(dirt_item,instances[item].dirt and (not in_play_mode))
                 if (freeze_percent > 0):
-                    filter = S.obs_source_get_filter_by_name(
-                        S.obs_sceneitem_get_source(scene_item), "Freeze filter")
-                   
+                    item_source = S.obs_sceneitem_get_source(scene_item)
+                    filter = S.obs_source_get_filter_by_name(item_source, "Freeze filter")
+                
                     if (instances[item].freeze):
                         S.obs_source_set_enabled(filter, True)
                     else:
                         S.obs_source_set_enabled(filter, False)
+                    S.obs_source_release(filter)
                 if instances[item].playing and in_play_mode:
-                    scene_item = S.obs_scene_find_source_recursive(
-                    test_scene, instance_source_format.replace("*", instances[item].suffix))
+                    test_scene = S.obs_get_scene_by_name(wall_scene_name)
+                    scene_item = S.obs_scene_find_source_recursive(test_scene, instance_source_format.replace("*", instances[item].suffix))
+                    S.obs_scene_release(test_scene)
                     move_source(scene_item, 0, 0)
                     scale_source(scene_item, screen_width, screen_height)
                     if hide_dirt_mode == "cover":
+                        test_scene = S.obs_get_scene_by_name(wall_scene_name)
                         dirt_item = S.obs_scene_find_source_recursive(test_scene, "Dirt " + instances[item].suffix)
+                        S.obs_scene_release(test_scene)
                         S.obs_sceneitem_set_visible(dirt_item,False)
 
                     if freeze_percent>0:
-                        filter = S.obs_source_get_filter_by_name(
-                                S.obs_sceneitem_get_source(scene_item), "Freeze filter")
+                        filter = S.obs_source_get_filter_by_name(S.obs_sceneitem_get_source(scene_item), "Freeze filter")
                         
                         S.obs_source_set_enabled(filter, False)
-                        
+                        S.obs_source_release(filter)
+
 
             prev_instances = instances
             prev_passive_count = passive_count
             prev_locked_count = locked_count
 
             if locked_ready_count_source_name:
-                text_source = S.obs_sceneitem_get_source(S.obs_scene_find_source_recursive(test_scene, locked_ready_count_source_name))
+                wall_scene = S.obs_get_scene_by_name(wall_scene_name)
+                text_source = S.obs_sceneitem_get_source(S.obs_scene_find_source_recursive(wall_scene, locked_ready_count_source_name))
+                S.obs_scene_release(wall_scene)
                 textdata = S.obs_data_create()
                 S.obs_data_set_string(textdata, "text", ready_count)
                 S.obs_source_update(text_source,textdata)
+                S.obs_data_release(textdata)
             if hide_when_playing_name:
-                scene_item = S.obs_scene_find_source_recursive(test_scene, hide_when_playing_name)
+                wall_scene = S.obs_get_scene_by_name(wall_scene_name)
+                scene_item = S.obs_scene_find_source_recursive(wall_scene, hide_when_playing_name)
+                S.obs_scene_release(wall_scene)
                 S.obs_sceneitem_set_visible(scene_item, not in_play_mode)
                 
     except Exception as e:
@@ -232,7 +250,6 @@ def test():
 
 
 def create_group(props, desc):
-
     group = S.obs_properties_create()
     groupprop = S.obs_properties_add_group(
         props, desc, desc, S.OBS_GROUP_NORMAL, group)
@@ -347,6 +364,7 @@ def script_properties():  # ui
     
     wall_scene = S.obs_get_scene_by_name(wall_scene_name)
     scene_items = S.obs_scene_enum_items(wall_scene)
+    S.obs_scene_release(wall_scene)
     p = S.obs_properties_add_list(
         create_group(props,"Text Source to display Ready Locked Instances Count"),
         "locked_ready_count_source_name",
@@ -367,6 +385,8 @@ def script_properties():  # ui
                 S.obs_sceneitem_get_source(scene_item))
             S.obs_property_list_add_string(p, name, name)
             S.obs_property_list_add_string(hide_p, name, name)
+            
+    S.sceneitem_list_release(scene_items)
    
     return props
 
@@ -398,6 +418,8 @@ def create_dirt_covers():
                     S.obs_source_filter_add(
                         S.obs_sceneitem_get_source(scene_item), filter)
 
+                S.obs_data_release(settings)
+
                 # Found an instance source, looking for dirt cover now
                 dirt_cover_name = "Dirt " + re.sub('[^0-9]', "", name)
                 dirt_cover_source = S.obs_scene_find_source_recursive(wall_scene, dirt_cover_name)
@@ -414,8 +436,10 @@ def create_dirt_covers():
                     source = S.obs_source_create(
                         "image_source", dirt_cover_name, settings, None)
                     S.obs_scene_add(wall_scene, source)
-
-
+                    S.obs_data_release(settings)
+    
+    S.sceneitem_list_release(scene_items)
+    S.obs_scene_release(wall_scene)
 
 def script_update(settings):
     global wall_scene_name
@@ -493,8 +517,6 @@ def script_update(settings):
     update_config_file()
     S.timer_remove(test)
     S.timer_add(test,  update_interval)
-
-
 
 def update_config_file():
     config = configparser.ConfigParser()
