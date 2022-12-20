@@ -195,6 +195,33 @@ FocusResetHoveredInstance() {
   ResetGridInstances()
 }
 
+ChordKeyDown(index) {
+  chordKeyStates[index] := True
+  chordPressed[index] := True
+}
+
+ChordKeyUp(index) {
+  chordKeyStates.Delete(index)
+  if (chordKeyStates.Count() == 0) { ; when all chord keys are released
+    ProcessChord()
+  }
+}
+
+ProcessChord() {
+  loop, % GetGridUsageInstancecount() {
+    inst := inMemoryInstances[A_Index]
+    if (chordPressed[A_Index]){ ; if this index was part of the chord, lock
+      SwapWithFirstPassive(A_Index)
+      inst.Lock()
+    } else { ; otherwise, reset
+      inst.Reset(bypassLock)
+      SwapWithOldest(A_Index)
+    }
+  }
+  NotifyObs()
+  chordPressed := [] ; clear current chord
+}
+
 ; Reset all instances
 ResetGridInstances() {
   loop, % GetGridUsageInstancecount() {

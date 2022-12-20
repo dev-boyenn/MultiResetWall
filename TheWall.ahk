@@ -34,6 +34,9 @@ global resets := 0
 global backGroundArray := []
 global bgPos := 1
 
+global chordKeyStates := [] ; currently held down keys
+global chordPressed := [] ; all keys pressed so far
+
 EnvGet, threadCount, NUMBER_OF_PROCESSORS
 global playThreads := playThreadsOverride > 0 ? playThreadsOverride : threadCount ; total threads unless override
 global lockThreads := lockThreadsOverride > 0 ? lockThreadsOverride : threadCount ; total threads unless override
